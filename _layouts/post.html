@@ -1,0 +1,112 @@
+<!DOCTYPE HTML>
+<html>
+<!-- <html> -->
+<head>
+  <title>{{ page.title }}|{{ site.title }}</title>
+  {% include header.html %}
+  <script type="text/javascript">
+        var BYB = {};
+  </script>
+  <script type="text/javascript">
+    BYB.includeScript = function(file,callback){
+    var _doc = document.getElementsByTagName('head')[0];
+    var js = document.createElement('script');
+    js.setAttribute('type', 'text/javascript');
+    js.setAttribute('src', file);
+    _doc.appendChild(js);
+    
+    if (!/*@cc_on!@*/0) { //if not IE
+    //Firefox2、Firefox3、Safari3.1+、Opera9.6+ support js.onload
+    js.onload = function () {
+    callback();
+    }
+    } else {
+    //IE6、IE7 support js.onreadystatechange
+    js.onreadystatechange = function () {
+    if (js.readyState == 'loaded' || js.readyState == 'complete') {
+    callback();
+    }
+    }
+    }
+    return false;
+    }
+  </script>
+  <meta content="{{ page.description }}" name="description"/>
+  <meta content="{% for tag in page.tags %}{{ tag }},{% endfor %}" name="keywords"/>
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="{{ site.url }}/{{ page.url }}" />
+  <meta property="og:title" content="{{ page.title }}" />
+  <meta property="og:description" content="{{ page.description }}" />
+</head>
+<body>
+
+{% include banner.html %}
+
+<div class="container">
+
+<div class="main clearfix">
+  <div class="title">{{ page.title }}</div>
+
+  <div class="content {{ page.categories }}_content_css">
+    {{ content }}
+  </div>
+
+<!--   <div class="info">
+    记于{{ page.date | date:"%Y年%m月%d日"}}
+  </div> -->
+
+  <hr>
+  <div class="eof">EOF</div>
+  <hr>
+
+<!--   <div class="forb">
+  {% for tag in page.tags %}
+  <a href="/tags/#{{ tag }}">#{{ tag }}</a>
+  {% endfor %}
+  </div> -->
+
+<!--   <div class="suggest">
+    {% if page.previous %}
+        <a href="{{page.previous.url}}" class="pre">&lt; {{page.previous.title}}</a>
+    {% endif %}
+    
+    {% if page.next %}
+        <a href="{{page.next.url}}" class="next">{{page.next.title}} &gt;</a>
+    {% endif %}
+    </div> -->
+</div>
+
+<!--
+<div class="comments {{ page.categories }}_comments_css">
+<div id="disqus_container"> 
+    {% if page.not_comment %}
+    <span class="comment">该文章已关闭评论。</span>
+    {% else %}
+    <a href="#" class="comment" onclick="return false;">点击评论或查看评论。</a>
+    {% endif %}    
+    <div id="disqus_thread"></div>
+</div>
+</div>
+-->
+
+<script type="text/javascript">
+    $(document).ready(function(){
+        $('#disqus_container .comment').on('click',function(){
+            $(this).html('加载中...');
+    var disqus_shortname = '{{site.author.key}}';
+            var that = this;
+            BYB.includeScript('http://' + disqus_shortname + '.disqus.com/embed.js',function(){$(that).remove()});
+        });
+});
+</script>
+
+</div>
+
+{% include footer.html %}
+
+<!--
+  Copryright {{site.author.name}} 未经允许，严禁直接从Github上转载我的文章，所有文章遵循CC协议，允许复制和转载，但需要保留原作者链接。
+  该文章{{ page.title }}写于{{ page.date | date:"%Y年%m月%d日"}}。
+-->
+</body>
+</html>

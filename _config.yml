@@ -1,0 +1,15 @@
+markdown:         kramdown
+highlighter:      rouge
+permalink:        /:categories/:year/:month/:day/:title/
+
+title:            "GuoJing's Blog"
+url:              http://guojing.me
+feed:             /feed.xml
+author:
+    name:         GuoJing
+    twitter:      twitter.com/guojing
+    key:          jguoer
+description:      "只要心还跳"
+copyright:        "CopryRight GuoJing 2012-2012 by GitHub and Jekyll"
+headdesc:         "GuoJing的博客，关于设计，开发以及生活。"
+headkeys:         "设计,开发,思考,生活,豆瓣,读书,电影,音乐,游记"
