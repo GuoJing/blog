@@ -4,7 +4,7 @@ cafe:
 
 blog:
 	jekyll build
-	ghp-import _site -p -n
+	ghp-import _site -b master -r html -p 
 
 clean:
 	sh export.sh
