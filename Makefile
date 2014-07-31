@@ -1,16 +1,15 @@
 cafe:
 	jekyll build
-	ghp-import _site -b gitcafe-pages -r cafe -p
+	ghp-import _site -b gitcafe-pages -r cafe
 
-github:
+blog:
 	jekyll build
-	ghp-import _site -b gitcafe-pages -r origin -p
+	ghp-import _site -b master -r html
 
 clean:
 	sh export.sh
 
 pub:
 	make cafe
-	git ci -am'make:add or update post'
-	git push origin master
+	make blog
 
