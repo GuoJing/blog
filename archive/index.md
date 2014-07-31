@@ -3,7 +3,7 @@ layout:  page
 title: 归档
 description: 归档
 ---
-别说你还好，没什么不好：
+倒带人生：
 
 <ul class="archive">
 {% for post in site.posts %}
