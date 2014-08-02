@@ -506,3 +506,23 @@ img {
   border-radius: 128px;
   border: 10px solid #f7fafb;
 }
+
+.me {
+  text-align: center;
+}
+
+.me img {
+  max-width: 320px;
+  max-height: 320px;
+  border-radius: 160px;
+  border: 10px solid #f1f1f1;
+}
+
+.not { text-align: center;}
+
+.notfound {
+  text-align: center;
+  font-size: 6rem;
+  margin-top: 40px;
+  margin-bottom: 40px;
+}

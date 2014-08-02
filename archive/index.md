@@ -3,8 +3,6 @@ layout:  page
 title: 归档
 description: 归档
 ---
-倒带人生：
-
 <ul class="archive">
 {% for post in site.posts %}
   {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
