@@ -44,6 +44,7 @@
 body {
   font-size: 18px;
   color: #525d67;
+  background: #FFF;
   font-family: "Lato","Open Sans",Arial,"Hiragino Sans GB","Microsoft YaHei","微软雅黑","STHeiti","WenQuanYi Micro Hei",SimSun,sans-serif;
   font-size: 1.125em;
   -webkit-font-smoothing: antialiased;
@@ -92,22 +93,23 @@ hr {
   overflow: hidden;
   padding: 20px;
   border-radius: 0px 0px 10px 10px;
+  padding-top: 40px;
 }
 
 .banner {
   font-size: 1.5rem;
   font-weight: bolder;
   background: #3498DB;
-  margin-bottom: 30px;
   padding: 2px 0 2px 0;
   font-family: "Lato", Helvetica, Arial, sans-serif;
 }
 
 .banner ul li {
   margin-bottom: 0px;
+  padding: 5px;
 }
 
-.banner a {color: white}
+.banner a {color: white;}
 
 .banner a:hover {
   color: #747f8c;
@@ -120,7 +122,7 @@ a {
 }
 
 .title {
-  font-size: 5.8rem;
+  font-size: 5rem;
   margin-left: -5px;
   margin-bottom: 30px;
   color: #38485a;
@@ -140,7 +142,7 @@ a {
 }
 
 .content,blockquote {
-  font-size: 1.9rem;
+  font-size: 1.8rem;
   line-height: 2.2em;
   color: #525d67;
 }
@@ -343,6 +345,10 @@ img {
 .nav-pills > li > a:hover {
   color: white;
   background-color: #3498DB;
+}
+
+.nav-pills>li+li {
+  margin-left: -10px;
 }
 
 .poster,.content p,.content ul,.date,.content {
