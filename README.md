@@ -1,3 +1,9 @@
+## 代码 ##
+
+因为某些特别的原因，Jekyll经常在线上无法编译通过，所以这里就只放静态文件了，真正的代码请移步。
+
+[https://github.com/GuoJing/blog](https://github.com/GuoJing/blog)
+
 ## 导出 ##
 
 很多人fork我的博客以使用这个皮肤，我提供了一个工具，可以使用`Make clean`导出到目录的new\_site，为干净的文件目录。
