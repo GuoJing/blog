@@ -12,4 +12,6 @@ clean:
 pub:
 	make cafe
 	make blog
+	git ci -am'auto commit'
+	git push origin dev
 
