@@ -3,24 +3,29 @@ layout: default
 title: GuoJing's Blog|只要心还跳
 ---
 
+<!-- <div class="me">
+<img src="images/authors/index.jpeg"/>
+</div> -->
+
+<div class="posts">
+    <div class="content">
+        <p>
+        Python工程师，伪设计师。喜欢Code、绘画。武汉人，现定居北京。目前创业中，打杂。Geek，什么都玩，喜欢有挑战的事情。欢迎去我的Github。<a href="/about">关于我</a>，<a href="/linux-kernel-architecture/archive/">Linux内核学习笔记。</a></p>
+    </div>
+</div>
+
 {% for post in site.posts %}
 {% if forloop.index == 1 %}
-    <div class="posts">
-    <div class="title">{{ post.title }}</div>
-    <div class="content">
-    {{ post.content }}
-    </div>
-
-    </div>
-    {% if forloop.length > 1 %}
-        <hr>
-        <div class="eof">EOF</div>
-        <hr>
-        <h3><strong>阅读更多:</strong></h3><br>
-    {% endif %}
+    <div class="title justtitle newpost"><span class="glyphicon glyphicon-plus"></span> <a href="{{ post.url }}">{{ post.title }}</a></div>
 {% else %}
     {% if forloop.index <= 6 %}
-    <div class="title justtitle"><a href="{{ post.url }}">{{ post.title }}</a></div>
+    <div class="title justtitle"><span class="glyphicon glyphicon-link"></span> <a href="{{ post.url }}">{{ post.title }}</a></div>
     {% endif %}
 {% endif %}
 {% endfor %}
+
+<div class="title justtitle"><span class="glyphicon glyphicon-link"></span> <a href="/archive">归档</a></div>
+
+<hr>
+  <div class="eof">EOF</div>
+<hr>
