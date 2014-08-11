@@ -16,7 +16,7 @@ title: GuoJing's Blog|只要心还跳
 
 {% for post in site.posts %}
 {% if forloop.index == 1 %}
-    <div class="title justtitle newpost"><span class="glyphicon glyphicon-plus"></span> <a href="{{ post.url }}">{{ post.title }}</a></div>
+    <div class="title justtitle newpost"><span class="glyphicon glyphicon-link"></span> <a href="{{ post.url }}">{{ post.title }}</a></div>
 {% else %}
     {% if forloop.index <= 6 %}
     <div class="title justtitle"><span class="glyphicon glyphicon-link"></span> <a href="{{ post.url }}">{{ post.title }}</a></div>

@@ -99,7 +99,8 @@ hr {
 .banner {
   font-size: 1.5rem;
   font-weight: bolder;
-  background: #ECF0F1;
+  background: white;
+  border-bottom: 1px solid #ECF0F1;
   padding: 2px 0 2px 0;
   font-family: "Lato", Helvetica, Arial, sans-serif;
 }
@@ -117,7 +118,7 @@ hr {
 }
 
 a {
-  color: #34495E
+  color: #34495E;
 }
 
 .title {
@@ -342,7 +343,7 @@ img {
 
 .nav-pills > li > a:hover {
   /*color: white;*/
-  background-color: #ECF0F1;
+  background-color: white;
 }
 
 .nav-pills>li+li {
@@ -395,7 +396,7 @@ img {
 }
 
 .content a:hover {
-  color: #27AE60;
+  color: #3498DB;
 }
 
 .content .collect_info {
