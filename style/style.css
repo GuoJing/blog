@@ -99,7 +99,7 @@ hr {
 .banner {
   font-size: 1.5rem;
   font-weight: bolder;
-  background: #3498DB;
+  background: #ECF0F1;
   padding: 2px 0 2px 0;
   font-family: "Lato", Helvetica, Arial, sans-serif;
 }
@@ -109,10 +109,9 @@ hr {
   padding-right: 5px;
 }
 
-.banner a {color: white;}
+.banner a {color:#7F8C8D;}
 
 .banner a:hover {
-  color: #747f8c;
   text-decoration: none;
   background: #FFF;
 }
@@ -124,7 +123,7 @@ a {
 .title {
   font-size: 5rem;
   margin-left: -5px;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   color: #38485a;
 }
 
@@ -202,7 +201,7 @@ blockquote p {
 }
 
 blockquote {
-  border-left: 5px solid #3498DB;
+  border-left: 5px solid #F1C40F;
   margin-bottom: 30px;
 }
 
@@ -314,18 +313,17 @@ pre code {
 
 .info,.suggest {
   color: #bababa;
-  font-size: 16px;
-  text-align: right;
-  margin-bottom: 20px;
+  font-size: 1.6rem;
+  margin-bottom: 30px;
   margin-top: 20px;
   width: 100%;
 }
 
-.info,.suggest,.pre {
+.suggest,.pre {
   float: left;
 }
 
-.info,.suggest,.next {
+.suggest,.next {
   float: right;
 }
 
@@ -343,8 +341,8 @@ img {
 }
 
 .nav-pills > li > a:hover {
-  color: white;
-  background-color: #3498DB;
+  /*color: white;*/
+  background-color: #ECF0F1;
 }
 
 .nav-pills>li+li {
@@ -521,11 +519,11 @@ img {
 }
 
 .justtitle span{
-  color: #747f8c;
+  color: #ECF0F1;
 }
 
 .newpost span{
-  color: #3498DB;
+  color: #BDC3C7;
 }
 
 .not { text-align: center;}
