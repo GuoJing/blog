@@ -97,8 +97,7 @@ hr {
 }
 
 .banner {
-  font-size: 1.5rem;
-  font-weight: bolder;
+  font-size: 1.4rem;
   background: white;
   border-bottom: 1px solid #ECF0F1;
   padding: 2px 0 2px 0;
@@ -122,14 +121,14 @@ a {
 }
 
 .title {
-  font-size: 5rem;
+  font-size: 4.3rem;
   margin-left: -5px;
   margin-bottom: 30px;
-  color: #38485a;
+  color: #525d67;
 }
 
 .justtitle {
-  font-size: 18px;
+  font-size: 1.7rem;
   margin-left: 5px;
   margin-bottom: 20px;
   font-weight: normal;
@@ -141,8 +140,8 @@ a {
   font-size: 16px;
 }
 
-.content,blockquote {
-  font-size: 1.8rem;
+.content, blockquote {
+  font-size: 1.7rem;
   line-height: 2.2em;
   color: #525d67;
 }
@@ -408,7 +407,7 @@ img {
 
 .content table {
   margin-bottom: 25px;
-  font-size: 16px;
+  font-size: 1.6rem;
   width: 100%;
 }
 
@@ -430,7 +429,7 @@ img {
 
 .footnotes {
   border-top: 1px solid #f0f0f0;
-  font-size: 16px;
+  font-size: 1.5rem;
   padding-top: 30px;
   color: #747f8c;
 }
@@ -521,6 +520,7 @@ img {
 
 .justtitle span{
   color: #BDC3C7;
+  margin-right: 5px;
 }
 
 .newpost span{
