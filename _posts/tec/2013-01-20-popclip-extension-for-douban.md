@@ -8,7 +8,7 @@ tags: popclip extension douban search 插件 开发
 今天闲逛App Store，发现原来有一个非常好玩的App，之前也有不少同事推荐过，只是当时我没有注意，今天下载下来玩了一下，总的来说还是不错的，这个App实现的就是和iOS上面的复制粘贴一样，当选择了一段文字或者内容，可以做相应的操作。比如我选中了部分文字之后，我可以复制粘贴，甚至可以选中email，它会自动识别成email并且让你选择发送邮件。比如选中abcd@gmail.com。会出现下图这样的界面，你就可以直接用默认的邮件App发送邮件了。
 
 {:.center}
-![popclip](/images/2012/mail.png){:style="max-width: 249px"}
+![popclip](/images/2012/mail.png){:style="max-width: 299px"}
 
 当然它的作用不只一点点，这个App支持插件，也就是说是开放给开发者开发的，现在有很多的App都有插件，除了Amazon、imdb、Baidu、Taobao这样的可能是自己开发的插件，也有一些比如Evernote、OmniFocus、Things这样的厂商开发的插件，非常有用。很多时候比如我想选择一段话存到Evernote里，还得复制粘贴，我希望直接就好像“管道”一样发送到Evernote里就好，现在有了这个App，确实方便很多。当然，还有很多插件等待开发和挖掘，可以访问[官方的Extension](http://pilotmoon.com/popclip/extensions/)页面下载更多的插件。
 
