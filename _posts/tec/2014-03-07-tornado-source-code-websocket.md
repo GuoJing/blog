@@ -5,9 +5,9 @@ category:  tec
 description: Tornado源码解析 Websocket...
 tags: code tornado 源码解析
 ---
-上次看了Tornado整个HTTP分析之后，写了[《Tornado - HTTP》](/tornado-source-code-http/)觉得很有意思，之前接触的都是简单的wsgi模型，当然，是我太土太垃圾了，实在是说不出口抬不起头，又不好意思问。因为问了别人别人总是会以『这你都不知道』反驳，或者直接丢一个『什么是Websocket』之类的文档。看看代码，估计又是ws = new Websocket这种js使用。虽然我很搓，但总之这样得不到解答还是很难受的。
+上次看了Tornado整个HTTP分析之后，写了[《Tornado - HTTP》](/posts/tornado-source-code-http/)觉得很有意思，之前接触的都是简单的wsgi模型，当然，是我太土太垃圾了，实在是说不出口抬不起头，又不好意思问。因为问了别人别人总是会以『这你都不知道』反驳，或者直接丢一个『什么是Websocket』之类的文档。看看代码，估计又是ws = new Websocket这种js使用。虽然我很搓，但总之这样得不到解答还是很难受的。
 
-所以这次又看了一下tornado/websocket.py这个文件，觉得很有意思，权当了解一下Tornado的Websocket实现。当然还是从代码里走函数，走马观花。之前的[《Tornado - HTTP》](/tornado-source-code-http/)这里面可以看到，任何注册hanlder，最后都会执行到_execute里去，所以，好嘛，这就简单了。
+所以这次又看了一下tornado/websocket.py这个文件，觉得很有意思，权当了解一下Tornado的Websocket实现。当然还是从代码里走函数，走马观花。之前的[《Tornado - HTTP》](/posts/tornado-source-code-http/)这里面可以看到，任何注册hanlder，最后都会执行到_execute里去，所以，好嘛，这就简单了。
 
 不过还是先从demos/websocket/chatdemo.py去看。
 
@@ -23,4 +23,4 @@ WebSocketProtocol13这个类继承自WebSocketProtocol，可以跑去看看，We
 
 ### AND ###
 
-* [《Tornado - HTTP》](/tornado-source-code-http/)
+* [《Tornado - HTTP》](/posts/tornado-source-code-http/)

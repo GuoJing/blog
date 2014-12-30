@@ -1,6 +1,6 @@
 markdown:         kramdown
 highlighter:      rouge
-permalink:        /blog/:title/
+permalink:        /posts/:title/
 
 title:            "GuoJing's Blog"
 url:              http://guojing.me
