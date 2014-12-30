@@ -43,4 +43,4 @@ Tornado全局
 
 ### AND ###
 
-* [Tornado - Websocket](/tec/2014/03/07/tornado-source-code-websocket/)
+* [Tornado - Websocket](/tornado-source-code-websocket/)
