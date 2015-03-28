@@ -13,6 +13,6 @@ description: Ukulele
 
 <audio src="http://guojing.qiniudn.com/Blue_roses_falling.mp3" controls></audio>
 
-3.*Fly me to the moon*
+3.Fly me to the moon
 
 <audio src="http://guojing.qiniudn.com/Fly_me_to_the_moon.mp3" controls></audio>
