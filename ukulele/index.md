@@ -21,3 +21,6 @@ Go for broke
 
 <audio src="http://guojing.qiniudn.com/Go_for_broke.mp3" controls></audio>
 
+While my guitar gently weeps
+
+<audio src="http://guojing.qiniudn.com/While_my_guitar_gently_weeps.mp3" controls></audio>
