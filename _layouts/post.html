@@ -47,11 +47,9 @@
 <div class="main clearfix">
   <div class="title">{{ page.title }}</div>
 
-<!--
   <div class="info">
-   记于{{ page.date | date:"%Y年%m月%d日"}}
+      <i>记于 {{ page.date | date:"%Y-%m-%d"}}</i>
   </div>
--->
 
   <div class="content {{ page.categories }}_content_css">
     {{ content }}
