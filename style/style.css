@@ -176,8 +176,7 @@ blockquote p {
 
 .footer {
   text-align: center;
-  margin-top: 30px;
-  margin-bottom: 30px;
+  margin-top: 10px;
   font-size: 14px;
   color: #747f8c;
 }
@@ -198,6 +197,10 @@ blockquote p {
 .date a:visited {
   color: #FFF;
   text-decoration: none;
+}
+
+.end {
+  margin-top: -20px;
 }
 
 blockquote {
@@ -244,6 +247,10 @@ a:link {
 .archive,.content {
   list-style: none;
   padding: 0;
+}
+
+.archive {
+  margin-top: -30px;
 }
 
 .archive li {
@@ -349,7 +356,7 @@ img {
   margin-left: -10px;
 }
 
-.poster,.content p,.content ul,.date,.content {
+.poster,.content p,.content ul,.date {
   margin-bottom: 30px;
 }
 
@@ -455,8 +462,8 @@ img {
 .author {
   max-width: 700px;
   margin: 0px auto;
-  margin-top: 30px;
-  margin-bottom: 30px;
+  margin-top: 10px;
+  margin-bottom: 20px;
 }
 
 .author .icon {
@@ -473,7 +480,7 @@ img {
 .author .name, .author .description {
   text-align: center;
   border-radius: 4px;
-  margin: 20px auto;
+  margin: 10px auto;
   font-size: 14px;
   padding: 5px;
   text-shadow: 0 1px 0 white;
@@ -510,10 +517,10 @@ img {
 }
 
 .me img {
-  max-width: 320px;
-  max-height: 320px;
+  max-width: 250px;
+  max-height: 250px;
   border-radius: 160px;
-  border: 10px solid #f1f1f1;
+  border: 5px solid #f1f1f1;
   text-align: center;
   margin-bottom: 30px;
 }
