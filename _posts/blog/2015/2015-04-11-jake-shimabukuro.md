@@ -51,9 +51,7 @@ Life on four string
 
 所以，真的很感谢 Ukulele，还有 Jake，网上看到他和粉丝一起演奏，真的又羡慕又嫉妒，希望有一天能够和 Jake 一起。真的希望有一天他能够来到中国，我能去看他的演出，然后和他一起演奏一支曲子。然后当面和他说：
 
-> oh my! you know what, ukulele saved my life.
-
-> Thanks Jake.
+> oh my! you know what, ukulele saved my life.<br><br>Thanks Jake.
 
 最后送上一首我最近在学的曲子《More Ukulele》，希望大家喜欢。也可以关注我学习上传的视频哦[^2]。
 
