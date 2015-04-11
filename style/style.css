@@ -208,7 +208,7 @@ blockquote p {
 }
 
 blockquote {
-  border-left: 5px solid #1ABC9C;
+  border-left: 5px solid #f1f1f1;
   margin-bottom: 30px;
 }
 
@@ -237,6 +237,7 @@ a:link {
 
 .content strong {
   color: #38485a;
+  margin: 0px 3px 0px 3px;
 }
 
 .comments {
