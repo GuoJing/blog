@@ -14,7 +14,9 @@ Jake Shimabukuro[^1] 是我最喜欢的 Ukulele 演奏家，没有之一，以�
 就像 Jake 说的，Ukulele 应该是一个快乐的乐器，当你弹奏第一个和弦的时候，无论你是否学习了音乐，你都会爱上他。是的，虽然我一点音乐知识都没有，但是第一次弹奏 Ukulele 的时候，真正的爱上了 Ukulele，开始懂得如何去学习和欣赏音乐。特别是听了 Jake 的一曲《While my guitar gently weeps》，更是疯狂的痴迷上了 Ukulele 和音乐。
 
 {:center}
-<p><embed src="chrome-extension://alddjbjplgobbllfolehibiclbhmomla/player.swf?VideoIDS=XMzA0NTcyMzgw/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"/></p>
+<p>
+    <embed src="http://player.youku.com/player.php/sid/XMzA0NTcyMzgw/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></embed>
+</p>
 
 {:.center}
 While my guitar gently weeps
@@ -27,7 +29,8 @@ While my guitar gently weeps
 
 {:center}
 <p>
-<embed src="chrome-extension://alddjbjplgobbllfolehibiclbhmomla/player.swf?VideoIDS=XNjgzNDc4ODA0/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></p>
+    <embed src="http://player.youku.com/player.php/sid/XNjgzNDc4ODA0/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></embed>
+</p>
 
 {:.center}
 Blue Roses Falling
@@ -42,7 +45,8 @@ Jake 本身人也非常的 nice，就像 Ukulele 给我的感觉，他对音乐�
 
 {:center}
 <p>
-<embed src="chrome-extension://alddjbjplgobbllfolehibiclbhmomla/player.swf?VideoIDS=XNTY2NTk0NDA0/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></p>
+    <embed src="http://player.youku.com/player.php/sid/XNTY2NTk0NDA0/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></embed>
+</p>
 
 {:.center}
 Life on four string
@@ -57,7 +61,7 @@ Life on four string
 
 {:center}
 <p>
-<embed src="chrome-extension://alddjbjplgobbllfolehibiclbhmomla/player.swf?VideoIDS=XOTAwOTA2OTA4/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash">
+    <embed src="http://player.youku.com/player.php/sid/XOTAwOTA2OTA4/v.swf" allowFullScreen="true" quality="high" width="100%" height="400" align="middle" allowScriptAccess="always" type="application/x-shockwave-flash"></embed>
 </p>
 
 {:.center}
