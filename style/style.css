@@ -535,6 +535,10 @@ img {
   margin-right: 5px;
 }
 
+.indeximg img{
+  border-radius: 20px;;
+}
+
 .newpost span{
   color: #BDC3C7;
 }
