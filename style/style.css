@@ -476,10 +476,10 @@ img {
 }
 
 .author .icon img {
-  width: 80px;
-  height: 80px;
-  border-radius: 40px;
-  border:5px solid #eee;
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  border:1px solid #eee;
 }
 
 .author .name, .author .description {
@@ -492,18 +492,7 @@ img {
 }
 
 .author .name {
-  background: #6b747f;
-  color: white;
-  text-shadow:0 1px 0 #41474e;
   width: 100px;
-}
-
-.author a:link, .author a:visited {
-  color: white;
-}
-
-.author a:hover {
-  color: #fcfcfc;
 }
 
 .aboutme {
