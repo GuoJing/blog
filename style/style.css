@@ -128,7 +128,7 @@ a {
   font-size: 6rem;
   margin-left: -5px;
   margin-bottom: 30px;
-  color: #525d67;
+  color: #747f8c;
 }
 
 .justtitle {
@@ -160,6 +160,7 @@ a {
   width: 100%;
   display: inline-block;
   margin: 10px auto;
+  border-radius: 4px;
 }
 
 blockquote p {
