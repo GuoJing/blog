@@ -41,10 +41,13 @@
 <body>
 
 
+<article id="main" itemscope itemtype="http://schema.org/Article">
 <div class="container">
 
 <div class="main clearfix">
-  <div class="title">{{ page.title }}</div>
+  <div class="title" itemprop="name">{{ page.title }}</div>
+  <div class="hidden" itemprop="author">GuoJing</div>
+  <div class="hidden" itemprop="description">{{ page.description }}</div>
 
   <!--
   <div class="info">
@@ -52,7 +55,7 @@
   </div>
 -->
 
-  <div class="content {{ page.categories }}_content_css">
+  <div class="content {{ page.categories }}_content_css" itemprop="articleBody">
     {{ content }}
   </div>
 
@@ -76,6 +79,7 @@
     {% endif %}
     </div> -->
 </div>
+</article>
 
 <!--
 <div class="comments {{ page.categories }}_comments_css">

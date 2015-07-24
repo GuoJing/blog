@@ -100,6 +100,10 @@ hr {
   padding-top: 40px;
 }
 
+.hidden {
+  display: none;
+}
+
 .banner {
   font-size: 1.4rem;
   background: white;
