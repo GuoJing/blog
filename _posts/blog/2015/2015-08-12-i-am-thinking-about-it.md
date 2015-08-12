@@ -57,4 +57,4 @@ tags: code life music
 > 内心戏 最难演 深情总在无言间<br>
 > 冷漠的人听不见 为什么你也听不见<br>
 
-黄磊的[边走边唱](http://www.xiami.com/album/1690)。
+黄磊的[边走边唱](http://www.xiami.com/album/1690)，如果你听，你会发现曲子真的很老，但很真挚，希望你也喜欢。
