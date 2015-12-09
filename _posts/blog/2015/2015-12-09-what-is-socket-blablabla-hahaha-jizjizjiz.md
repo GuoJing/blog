@@ -15,13 +15,13 @@ tags: moleskine
 
 后来机缘巧合，当然，也不是专门尝试去了解这个问题，总而言之，那么一回事，翻翻书上上网，竟然勉为其难的把内核书给啃了一遍，凑巧又看了看一些框架的做法，又把计算机网络补了一下，还翻看了有卡通的计算机漫画书，总之，有一天，突然模模糊糊的大概有一个印象，啊啊，就是这个东西的，原来人类还真的是很蠢的生物，并没有比我还高明一点嘛。
 
-虽然有点说大话的嫌疑，但大概也有了一点思路，但如果章鱼卡夫卡问我是什么，我还是一下子无法说清楚什么是 Socket，今天想想来看的话，这个问题问的不好又有些幼稚（毕竟只是个定义！），但要聊聊的话，也许可以从 RJ45 这样的老东西开始扯起了，这么一想就有点愧对于卡夫卡。
+虽然有点说大话的嫌疑，但大概也有了一点思路，但如果章鱼卡夫卡问我是什么，我还是一下子无法说清楚什么是 Socket，今天想想来看的话，这个问题问的不好又有些幼稚（毕竟只是个定义！），但要聊聊的话，也许可以从 RJ45 这样的老东西开始扯起了，这么一想就又有点愧对于卡夫卡。
 
 {:.center}
 ![Socket](/images/2015/socket.png){:style="max-width: 300px"}
 
 但无论如何，只要大脑里想着各种各样姿势的 01010101 无论是通过电还是通过光的折射，xiuxiuxiu 跑来跑去，突然摇身一变变成 Socket 了，还大摇大摆的，多多少少还是有些不太爽。
 
-Socket 大概明白了，为什么要叫套接字呢，我中文不好，这tao、jie、zi三个中文到底怎么理解？为何这么翻译的呢？
+好吧，Socket 大概明白了，但为什么要叫套接字呢，我中文不好，这tao、jie、zi三个中文到底怎么理解？为何这么翻译的呢？
 
-A TCP connection is defined by two endpoints aka sockets. [here](http://stackoverflow.com/questions/152457/what-is-the-difference-between-a-port-and-a-socket).
+A TCP connection is defined by two endpoints aka *[sockets](http://stackoverflow.com/questions/152457/what-is-the-difference-between-a-port-and-a-socket)*.
