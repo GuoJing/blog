@@ -127,7 +127,7 @@ if __name__ == '__main__':
 
 1. HTTP2
 1. Channel
-2. CompleteQueue
+2. CompletionQueue
 
 HTTP2 就是我们如何起动一个实现 HTTP2 协议的的 server。
 
@@ -135,7 +135,7 @@ Channel 可以认为是客户端和服务端之间的通道，但是 Channel Pyt
 
 除此之外，Channel 状态的改变，是可以被我们利用的，服务端主动的断开了连接，客户端是可以收到断开的提醒的[^2]。但我们在这个提醒上没有办法做更多其他的事情。
 
-CompleteQueue 是任务队列，gRPC 实现了一个简单的事件机制，队列用来传递事件，这个理解起来并不困难。我们可以简单的想象成下面这样的一个结构。
+CompletionQueue 是任务队列，gRPC 实现了一个简单的事件机制，队列用来传递事件，这个理解起来并不困难。我们可以简单的想象成下面这样的一个结构。
 
 {:.center}
 ![gRPC Stack](/images/2016/grpc-class-stack.png)
@@ -153,7 +153,7 @@ CompleteQueue 是任务队列，gRPC 实现了一个简单的事件机制，队�
 
 1. [Basic](/posts/grpc-python-bind-source-code-1/)
 2. [Server](/posts/grpc-python-bind-source-code-2/)
-3. [CompleteQueue](/posts/grpc-python-bind-source-code-3/)
+3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
 5. [Channel](/posts/grpc-python-bind-source-code-5/)
 

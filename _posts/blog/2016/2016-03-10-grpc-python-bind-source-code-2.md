@@ -269,7 +269,7 @@ sample.py
 
 1. [Basic](/posts/grpc-python-bind-source-code-1/)
 2. [Server](/posts/grpc-python-bind-source-code-2/)
-3. [CompleteQueue](/posts/grpc-python-bind-source-code-3/)
+3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
 5. [Channel](/posts/grpc-python-bind-source-code-5/)
 
