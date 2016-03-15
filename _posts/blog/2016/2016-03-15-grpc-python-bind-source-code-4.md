@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     gRPC Python 源码浅析 4
+title:     gRPC Python 源码浅析 - Stub
 category:  blog
 description: gRPC Python 源码
 tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
