@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     gRPC Python 源码浅析 - 2
+title:     gRPC Python 源码浅析 2
 category:  blog
 description: gRPC Python 源码
 tags: gRPC Python Google Source Coding HTTP2

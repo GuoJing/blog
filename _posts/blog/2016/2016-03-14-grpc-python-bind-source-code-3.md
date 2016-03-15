@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     gRPC Python 源码浅析 - 3
+title:     gRPC Python 源码浅析 3
 category:  blog
 description: gRPC Python 源码
 tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
