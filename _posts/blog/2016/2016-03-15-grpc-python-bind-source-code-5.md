@@ -174,7 +174,93 @@ grpc_channel *grpc_insecure_channel_create(const char *target,
 {:.center}
 src/core/surface/channel_create.c
 
-从上面我们可以创建一个 Channel。但是 Channel 的数据结构还比较复杂，所以我们需要画图来详细了解 Channel 和 Call 之间的关系。如果不清楚。还需要回头结合 [Stub](/posts/grpc-python-bind-source-code-4/) 和 C Core 一齐来看。
+继续往下创建。
+
+{% highlight c %}
+grpc_channel *grpc_channel_create_from_filters(
+    grpc_exec_ctx *exec_ctx, const char *target,
+    const grpc_channel_filter **filters, size_t num_filters,
+    const grpc_channel_args *args, int is_client) {
+  size_t i;
+  size_t size =
+      sizeof(grpc_channel) + grpc_channel_stack_size(filters, num_filters);
+  grpc_channel *channel = gpr_malloc(size);
+  memset(channel, 0, sizeof(*channel));
+  channel->target = gpr_strdup(target);
+  GPR_ASSERT(grpc_is_initialized() && "call grpc_init()");
+  channel->is_client = is_client;
+  gpr_mu_init(&channel->registered_call_mu);
+  channel->registered_calls = NULL;
+
+  channel->max_message_length = DEFAULT_MAX_MESSAGE_LENGTH;
+  if (args) {
+    for (i = 0; i < args->num_args; i++) {
+      if (0 == strcmp(args->args[i].key, GRPC_ARG_MAX_MESSAGE_LENGTH)) {
+        if (args->args[i].type != GRPC_ARG_INTEGER) {
+          gpr_log(GPR_ERROR, "%s ignored: it must be an integer",
+                  GRPC_ARG_MAX_MESSAGE_LENGTH);
+        } else if (args->args[i].value.integer < 0) {
+          gpr_log(GPR_ERROR, "%s ignored: it must be >= 0",
+                  GRPC_ARG_MAX_MESSAGE_LENGTH);
+        } else {
+          channel->max_message_length = (uint32_t)args->args[i].value.integer;
+        }
+      } else if (0 == strcmp(args->args[i].key, GRPC_ARG_DEFAULT_AUTHORITY)) {
+        if (args->args[i].type != GRPC_ARG_STRING) {
+          gpr_log(GPR_ERROR, "%s ignored: it must be a string",
+                  GRPC_ARG_DEFAULT_AUTHORITY);
+        } else {
+          if (channel->default_authority) {
+            /* setting this takes precedence over anything else */
+            GRPC_MDELEM_UNREF(channel->default_authority);
+          }
+          channel->default_authority = grpc_mdelem_from_strings(
+              ":authority", args->args[i].value.string);
+        }
+      } else if (0 ==
+                 strcmp(args->args[i].key, GRPC_SSL_TARGET_NAME_OVERRIDE_ARG)) {
+        if (args->args[i].type != GRPC_ARG_STRING) {
+          gpr_log(GPR_ERROR, "%s ignored: it must be a string",
+                  GRPC_SSL_TARGET_NAME_OVERRIDE_ARG);
+        } else {
+          if (channel->default_authority) {
+            /* other ways of setting this (notably ssl) take precedence */
+            gpr_log(GPR_ERROR,
+                    "%s ignored: default host already set some other way",
+                    GRPC_SSL_TARGET_NAME_OVERRIDE_ARG);
+          } else {
+            channel->default_authority = grpc_mdelem_from_strings(
+                ":authority", args->args[i].value.string);
+          }
+        }
+      }
+    }
+  }
+
+  if (channel->is_client && channel->default_authority == NULL &&
+      target != NULL) {
+    char *default_authority = grpc_get_default_authority(target);
+    if (default_authority) {
+      channel->default_authority =
+          grpc_mdelem_from_strings(":authority", default_authority);
+    }
+    gpr_free(default_authority);
+  }
+
+  # 初始化 channel statck
+  grpc_channel_stack_init(exec_ctx, 1, destroy_channel, channel, filters,
+                          num_filters, args,
+                          is_client ? "CLIENT_CHANNEL" : "SERVER_CHANNEL",
+                          CHANNEL_STACK_FROM_CHANNEL(channel));
+
+  return channel;
+}
+{% endhighlight %}
+
+{:.center}
+src/core/surface/channel.c
+
+从上面我们可以创建一个 Channel。但是 Channel 的数据结构还比较复杂，隐约我们发现 Channel 和 Call 之间有千丝万缕的联系。其中 *grpc_call_stack_init* 和 *grpc_channel_stack_init* 都很重要。所以我们需要画图来详细了解 Channel 和 Call 之间的关系。如果不清楚。还需要回头结合 [Stub](/posts/grpc-python-bind-source-code-4/) 和 C Core 一齐来看。
 
 ### Channel 结构体
 
