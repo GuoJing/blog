@@ -1372,7 +1372,9 @@ static void execute_op(grpc_exec_ctx *exec_ctx, grpc_call *call,
 {:.center}
 src/core/sureface/call.c
 
-最后，*start_transport_stream_op*。
+最后，到达了 *start_transport_stream_op*。
+
+暂时，可以当做在这里进行了传输，接下来具体是如何实现传输的，则需要了解 Channel Stack 和 Call Stack。
 
 ### 相关文章
 
