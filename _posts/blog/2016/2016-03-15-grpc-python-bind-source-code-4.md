@@ -1374,7 +1374,7 @@ src/core/sureface/call.c
 
 最后，到达了 *start_transport_stream_op*。
 
-暂时，可以当做在这里进行了传输，接下来具体是如何实现传输的，则需要了解 Channel Stack 和 Call Stack。
+暂时，可以当做在这里进行了传输，接下来具体分析是如何实现传输的，但在这之前，还需要了解 Channel Stack 和 Call Stack。以及 Channel 的创建流程。
 
 ### 相关文章
 
