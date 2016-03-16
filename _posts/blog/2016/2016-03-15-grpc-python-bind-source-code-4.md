@@ -783,7 +783,7 @@ void grpc_call_stack_set_pollset(grpc_exec_ctx *exec_ctx,
 {:.center}
 src/core/channel/channel_stack.c
 
-从之前的文章可以了解，Server 会开线程一直监听 CompletionQueue 并获取 Event 对象。再通过 Event 对象来反序列化和处理逻辑。而 Client 每次请求都会创建一个 Call 到 Server 端，并注册到 CompletionQueue 中。那么 Call 和 Event 之间是如何转换的，CompletionQueue 是如何在 Channel 上复用的，还需要继续在 C Core 代码中深入了解。
+从之前的文章可以了解，Server 会开线程一直监听 CompletionQueue 并获取 Event 对象。再通过 Event 对象来反序列化和处理逻辑。而 Client 每次请求都会创建一个 Call 到 Server 端，并注册到 CompletionQueue 中。那么 Call 和 Event 之间是如何转换的，CompletionQueue 是如何在 Channel 上复用的，还需要继续在 Channel 相关的代码和 C Core 代码中深入了解。
 
 ### 相关文章
 
