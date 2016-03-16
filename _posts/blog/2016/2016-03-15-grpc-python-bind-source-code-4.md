@@ -753,7 +753,7 @@ grpc_call *grpc_call_create(grpc_channel *channel, grpc_call *parent_call,
 {:.center}
 src/core/surface/call.c
 
-可以看见一个 Call 注册了一个 CompletionQueue，并把自己的 cq (CompletionQueue) 成员设置为 CompletionQueue。在今后的执行就能知道是从哪个 CompletionQueue 来，回到哪个 CompletionQueue。其中 *grpc_call_stack_set_pollset* 相当于执行了讲 call data 写入到 pollset。
+可以看见一个 Call 注册了一个 CompletionQueue，并把自己的 cq (CompletionQueue) 成员设置为 CompletionQueue。在今后的执行就能知道是从哪个 CompletionQueue 来，回到哪个 CompletionQueue。其中 *grpc_call_stack_set_pollset* 相当于执行了将 call data 写入到 pollset。
 
 {% highlight c %}
 void grpc_call_stack_set_pollset(grpc_exec_ctx *exec_ctx,

@@ -241,7 +241,7 @@ done:
 {:.center}
 src/core/surface/server_chttp2.c
 
-可以看到里面调用了 *grpc_server_add_listener*。至于什么时候 add port，当然是我们在 Python 代码一开始就绑定了端口，再 start 的了。
+可以看到里面调用了 *grpc_server_add_listener*。至于什么时候 add port，当然是我们在 Python 代码一开始就绑定了端口，再 start 的了。C 相关的调用代码请看 [gRPC C Core - Server](/posts/grpc-c-core-source-code-1/)。
 
 ### 线程池
 

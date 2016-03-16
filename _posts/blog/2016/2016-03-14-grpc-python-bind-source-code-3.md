@@ -108,7 +108,7 @@ class CompletionQueue(_types.CompletionQueue):
 
   def next(self, deadline=float('+inf')):
     # 这里从 queue 的 pool 中获得一个 event，就是这里了
-    raw_event = self.completion_queue.pool(cygrpc.Timespec(deadline))
+    raw_event = self.completion_queue.poll(cygrpc.Timespec(deadline))
 {% endhighlight %}
 
 {:.center}
@@ -288,6 +288,9 @@ grpc/_links/service.py
 
 {:.center}
 ![gRPC Stack](/images/2016/grpc-completion-queue.png){:style="max-width: 600px"}
+
+{:.center}
+CompletionQueue 大致流程图
 
 大概就是这么一个流程。
 
