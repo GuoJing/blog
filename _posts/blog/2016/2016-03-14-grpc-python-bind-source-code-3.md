@@ -107,7 +107,7 @@ class CompletionQueue(_types.CompletionQueue):
     self.completion_queue = cygrpc.CompletionQueue()
 
   def next(self, deadline=float('+inf')):
-    # 这里从 queue 的 pool 中获得一个 event，就是这里了
+    # 这里从 queue 的 poll 中获得一个 event，就是这里了
     raw_event = self.completion_queue.poll(cygrpc.Timespec(deadline))
 {% endhighlight %}
 
@@ -277,9 +277,9 @@ src/core/surface/completion_queue.c
 
 CompletionQueue 中还有一些重要的方法，一个一个来看。
 
-### CompletionQueue Pool
+### CompletionQueue Poll
 
-可以看到，在获取 Event 的时候 *grpc_completion_queue_next* 代码是很核心的。
+了解了 CompletionQueue 对象之后，再回顾代码来看，可见一直在通过 Queue 在获取 Event 。这个时候 *grpc_completion_queue_next* 的代码是很核心的。
 
 {% highlight c %}
 grpc_event grpc_completion_queue_next(grpc_completion_queue *cc,
@@ -304,7 +304,7 @@ grpc_event grpc_completion_queue_next(grpc_completion_queue *cc,
       ret.type = GRPC_OP_COMPLETE;
       ret.success = c->next & 1u;
       ret.tag = c->tag;
-      // 已经获得一个 event
+      // 调用 cq completion 的 done 方法
       c->done(&exec_ctx, c->done_arg, c);
       break;
     }

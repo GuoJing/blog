@@ -1,11 +1,13 @@
 ---
 layout:    post
-title:     gRPC C Core 源码浅析 - Server
+title:     gRPC C Core 源码浅析 - TCP Server
 category:  blog
 description: gRPC Python 源码
 tags: gRPC Python Google Source Coding HTTP2 C Core
 ---
 ### Overview
+
+**WIP: This is a working in progress Note. 该笔记正在完善**。
 
 在 [gRPC Python 源码浅析 - Server](/posts/grpc-python-bind-source-code-2/) 中了解了 gRPC Python 绑定是如何调用 C Core 代码启动一个 server 的，现在深入的了解 C Core 是如何启动一个 Server 的。
 
@@ -33,9 +35,11 @@ static void start(grpc_exec_ctx *exec_ctx, grpc_server *server, void *tcpp,
 {:.center}
 src/core/surface/server_chttp2.c
 
+所以知道 server start 方法，最终调用了 TCP Server 的 start 方法。而其中最重要的就是 *grpc_tcp_server_start*。
+
 ### TCP Server Start
 
-Server 启动的方法很简单，又是调用了底层的部分，但是 start 之后如何和客户端通信的，需要再深入了解。
+这里就直接看 *grpc_tcp_server_start* 方法。
 
 {% highlight c %}
 void grpc_tcp_server_start(grpc_exec_ctx *exec_ctx, grpc_tcp_server *s,

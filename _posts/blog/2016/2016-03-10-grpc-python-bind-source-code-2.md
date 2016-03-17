@@ -350,7 +350,7 @@ int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
   // ....
   grpc_resolved_addresses_destroy(resolved);
 
-  /* 注册 listener */
+  /* 注册 listener, 传进去的 start, destory 方法初始化到 tcp server 上 */
   grpc_server_add_listener(&exec_ctx, server, tcp, start, destroy);
   goto done;
 
@@ -368,9 +368,11 @@ src/core/surface/server_chttp2.c
 
 ### Create TCP Server
 
-其中 Python 如何启动 Server 就不深入看了，鉴于前面的文章已经写过了。现在直接看 C Core 代码。注意，这个时候 Server 还没调用 Start，还是先要绑定地址和端口，还在做这一步的操作。
+现在直接看 C Core 代码。注意，这个时候 Server 还没调用 Start，还是先要绑定地址和端口，还在做这一步的操作。注意，加密的和不加密的 tcp server 实现还是不一样的。
 
 {% highlight c %}
+// 这里只是看不加密的 server 的实现
+// 在这里 add listener
 int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
   grpc_resolved_addresses *resolved = NULL;
   // grpc tcp server 对象
@@ -523,7 +525,7 @@ void grpc_server_add_listener(
                     grpc_closure *on_done)) {
   // 初始化 listener
   listener *l = gpr_malloc(sizeof(listener));
-  // 绑定 listener 的方法
+  // l->arg 就是前面的 tcp
   l->arg = arg;
   l->start = start;
   l->destroy = destroy;
