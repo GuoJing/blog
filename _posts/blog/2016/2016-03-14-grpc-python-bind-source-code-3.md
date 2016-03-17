@@ -120,6 +120,7 @@ grpc/_adapter/_low.py
 cdef class CompletionQueue:
 
   def __cinit__(self):
+    # 创建一个 completion_queue
     self.c_completion_queue = grpc_completion_queue_create(NULL)
     self.is_shutting_down = False
     self.is_shutdown = False
@@ -166,9 +167,119 @@ cdef class CompletionQueue:
 {% endhighlight %}
 
 {:.center}
-grpc/_cython/completion_queue.pyx.pxi
+grpc/_cython/_cygrpc/completion_queue.pyx.pxi
 
-可以看到 *grpc_completion_queue_next* 是很核心的。
+### CompletionQueue 数据结构
+
+在创建 CompletionQueue 之前，需要了解 CompletionQueue C 的结构。
+
+{% highlight c %}
+struct grpc_completion_queue {
+  /** owned by pollset */
+  gpr_mu *mu;
+  /** completed events */
+  grpc_cq_completion completed_head;
+  grpc_cq_completion *completed_tail;
+  /** Number of pending events (+1 if we're not shutdown) */
+  gpr_refcount pending_events;
+  /** Once owning_refs drops to zero, we will destroy the cq */
+  gpr_refcount owning_refs;
+  /** 0 initially, 1 once we've begun shutting down */
+  int shutdown;
+  int shutdown_called;
+  int is_server_cq;
+  int num_pluckers;
+  plucker pluckers[GRPC_MAX_COMPLETION_QUEUE_PLUCKERS];
+  grpc_closure pollset_shutdown_done;
+
+#ifndef NDEBUG
+  void **outstanding_tags;
+  size_t outstanding_tag_count;
+  size_t outstanding_tag_capacity;
+#endif
+
+  grpc_completion_queue *next_free;
+};
+{% endhighlight %}
+
+{:.center}
+src/core/surface/completion_queue.c
+
+其中还有 *grpc_cq_completion*，是队列中的每一个元素。
+
+{% highlight c %}
+typedef struct grpc_cq_completion {
+  /** user supplied tag */
+  void *tag;
+  /** done callback - called when this queue element is no longer
+      needed by the completion queue */
+  void (*done)(grpc_exec_ctx *exec_ctx, void *done_arg,
+               struct grpc_cq_completion *c);
+  void *done_arg;
+  /** next pointer; low bit is used to indicate success or not */
+  uintptr_t next;
+} grpc_cq_completion;
+{% endhighlight %}
+
+{:.center}
+src/core/surface/completion_queue.h
+
+注意，每一个 *grpc_cq_completion* 都包含一个函数指针，done，还有一个 done_arg 指针。所以每个 *grpc_cq_completion* 都可以调用自己的 done 方法。
+
+### 创建 CompletionQueue
+
+创建 CompletionQueue 的 C 代码如下。
+
+{% highlight c %}
+grpc_completion_queue *grpc_completion_queue_create(void *reserved) {
+  // 初始化 completion queue
+  grpc_completion_queue *cc;
+  GPR_ASSERT(!reserved);
+
+  gpr_mu_lock(&g_freelist_mu);
+  if (g_freelist == NULL) {
+    gpr_mu_unlock(&g_freelist_mu);
+
+    cc = gpr_malloc(sizeof(grpc_completion_queue) + grpc_pollset_size());
+    grpc_pollset_init(POLLSET_FROM_CQ(cc), &cc->mu);
+#ifndef NDEBUG
+    cc->outstanding_tags = NULL;
+    cc->outstanding_tag_capacity = 0;
+#endif
+  } else {
+    cc = g_freelist;
+    g_freelist = g_freelist->next_free;
+    gpr_mu_unlock(&g_freelist_mu);
+  }
+
+  gpr_ref_init(&cc->pending_events, 1);
+  // 初始化 complete queue 成员
+  gpr_ref_init(&cc->owning_refs, 2);
+  cc->completed_tail = &cc->completed_head;
+  cc->completed_head.next = (uintptr_t)cc->completed_tail;
+  cc->shutdown = 0;
+  cc->shutdown_called = 0;
+  cc->is_server_cq = 0;
+  cc->num_pluckers = 0;
+#ifndef NDEBUG
+  cc->outstanding_tag_count = 0;
+#endif
+  grpc_closure_init(&cc->pollset_shutdown_done, on_pollset_shutdown_done, cc);
+
+  GPR_TIMER_END("grpc_completion_queue_create", 0);
+
+  return cc;
+}
+{% endhighlight %}
+
+{:.center}
+src/core/surface/completion_queue.c
+
+CompletionQueue 中还有一些重要的方法，一个一个来看。
+
+### CompletionQueue Pool
+
+可以看到，在获取 Event 的时候 *grpc_completion_queue_next* 代码是很核心的。
 
 {% highlight c %}
 grpc_event grpc_completion_queue_next(grpc_completion_queue *cc,
@@ -292,7 +403,9 @@ grpc/_links/service.py
 {:.center}
 CompletionQueue 大致流程图
 
-大概就是这么一个流程。
+大概就是这么一个流程，所以 CompletionQueue 是一个 Server 端的处理队列。
+
+那么数据是怎么进入到 CompletionQueue 的，就看 [gRPC C Core - Server](/posts/grpc-c-core-source-code-1/) 这篇。
 
 ### 相关文章
 
