@@ -149,13 +149,15 @@ CompletionQueue 是任务队列，gRPC 实现了一个简单的事件机制，�
 
 上图并不是一个流程图，只是画了一个大概的调用和运行的思路。代码栈的意思是，代码是如何层层调用最终调用到底层的，事件栈是指 gRPC 运行是一个什么样的流程。实际上 gRPC 其中的概念非常的多，接下来我们会仔细的了解各块运行的方式。
 
+这系列文章只是一个笔记，加上个人水平有限，所以**难免有误**，希望发现错误联系我修正错误。非常感谢。
+
 ### 相关文章
 
 1. [Basic](/posts/grpc-python-bind-source-code-1/)
 2. [Server](/posts/grpc-python-bind-source-code-2/)
 3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
-5. [Channel](/posts/grpc-python-bind-source-code-5/)
+5. [Channel and Call](/posts/grpc-python-bind-source-code-5/)
 
 ### 有关 C Core 的笔记
 

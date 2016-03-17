@@ -769,7 +769,7 @@ grpc_call *grpc_call_create(grpc_channel *channel, grpc_call *parent_call,
     // do something
   }
   call->send_deadline = send_deadline;
-  # 初始化 call stack 很有意义
+  // 初始化 call stack 很有意义
   grpc_call_stack_init(&exec_ctx, channel_stack, 1, destroy_call, call,
                        call->context, server_transport_data,
                        CALL_STACK_FROM_CALL(call));
@@ -1383,7 +1383,7 @@ src/core/sureface/call.c
 2. [Server](/posts/grpc-python-bind-source-code-2/)
 3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
-5. [Channel](/posts/grpc-python-bind-source-code-5/)
+5. [Channel and Call](/posts/grpc-python-bind-source-code-5/)
 
 ### 有关 C Core 的笔记
 
