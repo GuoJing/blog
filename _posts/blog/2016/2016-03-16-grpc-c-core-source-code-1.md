@@ -17,206 +17,7 @@ tags: gRPC Python Google Source Coding HTTP2 C Core
 {:.center}
 Server 启动大概步骤
 
-### Create TCP Server
-
-其中 Python 如何启动 Server 就不深入看了，鉴于前面的文章已经写过了。现在直接看 C Core 代码。注意，这个时候 Server 还没调用 Start，还是先要绑定地址和端口，还在做这一步的操作。
-
-{% highlight c %}
-int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
-  grpc_resolved_addresses *resolved = NULL;
-  // grpc tcp server 对象
-  grpc_tcp_server *tcp = NULL;
-  size_t i;
-  unsigned count = 0;
-  int port_num = -1;
-  int port_temp;
-  grpc_exec_ctx exec_ctx = GRPC_EXEC_CTX_INIT;
-
-  // 增加一个 grpc address 的绑定
-  resolved = grpc_blocking_resolve_address(addr, "http");
-  if (!resolved) {
-    // 如果搞不定就出错啦
-    goto error;
-  }
-
-  // 创建一个 tcp server
-  tcp = grpc_tcp_server_create(NULL);
-  GPR_ASSERT(tcp);
-
-  // 循环绑定端口到 tcp server
-  for (i = 0; i < resolved->naddrs; i++) {
-    port_temp = grpc_tcp_server_add_port(
-        tcp, (struct sockaddr *)&resolved->addrs[i].addr,
-        resolved->addrs[i].len);
-    if (port_temp > 0) {
-      if (port_num == -1) {
-        port_num = port_temp;
-      } else {
-        GPR_ASSERT(port_num == port_temp);
-      }
-      count++;
-    }
-  }
-  
-  // 如果没有任何绑定就报错
-  if (count == 0) {
-    gpr_log(GPR_ERROR, "No address added out of total %d resolved",
-            resolved->naddrs);
-    goto error;
-  }
-  
-  // 检查绑定数量
-  if (count != resolved->naddrs) {
-    gpr_log(GPR_ERROR, "Only %d addresses added out of total %d resolved",
-            count, resolved->naddrs);
-  }
-  
-  grpc_resolved_addresses_destroy(resolved);
-
-  // grpc server 增加一个 listener
-  // 这个 listener 是 tcp 对象
-  grpc_server_add_listener(&exec_ctx, server, tcp, start, destroy);
-  goto done;
-
-// 错误处理
-error:
-  if (resolved) {
-    grpc_resolved_addresses_destroy(resolved);
-  }
-  if (tcp) {
-    grpc_tcp_server_unref(&exec_ctx, tcp);
-  }
-  port_num = 0;
-
-done:
-  grpc_exec_ctx_finish(&exec_ctx);
-  return port_num;
-}
-{% endhighlight %}
-
-{:.center}
-src/core/surface/server_chttp2.c
-
-上面的代码不仅创建了一个 TCP Server，还给 server 添加了各种 listener。每个 listener 都是 tcp server 的实例。*grpc_tcp_server_create* 是一个重要的函数。可以进去看看这个函数在做什么。
-
-{% highlight c %}
-grpc_tcp_server *grpc_tcp_server_create(grpc_closure *shutdown_complete) {
-  // 分配内存
-  grpc_tcp_server *s = gpr_malloc(sizeof(grpc_tcp_server));
-  // 增加引用数量
-  gpr_ref_init(&s->refs, 1);
-  gpr_mu_init(&s->mu);
-  // 激活的端口数量
-  s->active_ports = 0;
-  // 注销的端口数量
-  s->destroyed_ports = 0;
-  // 是否正在关闭
-  s->shutdown = 0;
-  s->shutdown_starting.head = NULL;
-  s->shutdown_starting.tail = NULL;
-  s->shutdown_complete = shutdown_complete;
-  // 当获得数据的时候调用的 callback 函数
-  s->on_accept_cb = NULL;
-  // 当获得数据的时候调用的 callback 参数
-  s->on_accept_cb_arg = NULL;
-  // 头部的 grpc_tcp_listener
-  s->head = NULL;
-  // 尾部的 grpc_tcp_listener
-  s->tail = NULL;
-  s->nports = 0;
-  return s;
-}
-{% endhighlight %}
-
-{:.center}
-src/core/iomgr/tcp_server_posix.c
-
-从上面来看就初始化了一个 tcp server。
-
-### Bind listener
-
-一个 Listener 的结构体如下。
-
-{% highlight c %}
-typedef struct grpc_tcp_listener grpc_tcp_listener;
-struct grpc_tcp_listener {
-  int fd;
-  grpc_fd *emfd;
-  grpc_tcp_server *server;
-  union {
-    uint8_t untyped[GRPC_MAX_SOCKADDR_SIZE];
-    struct sockaddr sockaddr;
-    struct sockaddr_un un;
-  } addr;
-  size_t addr_len;
-  int port;
-  unsigned port_index;
-  unsigned fd_index;
-  grpc_closure read_closure;
-  grpc_closure destroyed_closure;
-  struct grpc_tcp_listener *next;
-  struct grpc_tcp_listener *sibling;
-  int is_sibling;
-};
-{% endhighlight %}
-
-{:.center}
-src/core/iomgr/tcp_server_posix.c
-
-创建 TCP Server 绑定了 listener，绑定 listener 的代码非常简单。
-
-{% highlight c %}
-void grpc_server_add_listener(
-    grpc_exec_ctx *exec_ctx, grpc_server *server, void *arg,
-    void (*start)(grpc_exec_ctx *exec_ctx, grpc_server *server, void *arg,
-                  grpc_pollset **pollsets, size_t pollset_count),
-    void (*destroy)(grpc_exec_ctx *exec_ctx, grpc_server *server, void *arg,
-                    grpc_closure *on_done)) {
-  // 初始化 listener
-  listener *l = gpr_malloc(sizeof(listener));
-  // 绑定 listener 的方法
-  l->arg = arg;
-  l->start = start;
-  l->destroy = destroy;
-  // 增加到 listener 链表中
-  l->next = server->listeners;
-  server->listeners = l;
-}
-{% endhighlight %}
-
-{:.center}
-src/core/server.c
-
-绑定 listner 之后，server 启动时，就会调用每个 listener 的 start 方法。
-
-### Server Start
-
-在创建了 TCP Server 实例并绑定 listener 之后，还需要回到 server 这部分代码，最后看看是如何启动的。
-
-{% highlight c %}
-void grpc_server_start(grpc_server *server) {
-  listener *l;
-  size_t i;
-  grpc_exec_ctx exec_ctx = GRPC_EXEC_CTX_INIT;
-
-  server->pollsets = gpr_malloc(sizeof(grpc_pollset *) * server->cq_count);
-  for (i = 0; i < server->cq_count; i++) {
-    server->pollsets[i] = grpc_cq_pollset(server->cqs[i]);
-  }
-  
-  // 每个 listener 都调用 start 函数
-  for (l = server->listeners; l; l = l->next) {
-    l->start(&exec_ctx, server, l->arg, server->pollsets, server->cq_count);
-  }
-
-  grpc_exec_ctx_finish(&exec_ctx);
-}
-{% endhighlight %}
-
-{:.center}
-src/core/surface/server.c
-
-可以看到，server start 方法就是让 server 下的每个 tcp listener 都调用 start 方法。
+从之前知道 server.start 最终是调用了 server->listener->start() 方法。所以还是从这里开始挖。
 
 {% highlight c %}
 static void start(grpc_exec_ctx *exec_ctx, grpc_server *server, void *tcpp,
@@ -232,7 +33,7 @@ static void start(grpc_exec_ctx *exec_ctx, grpc_server *server, void *tcpp,
 {:.center}
 src/core/surface/server_chttp2.c
 
-### Server 底层实现
+### TCP Server Start
 
 Server 启动的方法很简单，又是调用了底层的部分，但是 start 之后如何和客户端通信的，需要再深入了解。
 
@@ -422,7 +223,7 @@ static void new_transport(grpc_exec_ctx *exec_ctx, void *server,
   grpc_transport *transport = grpc_create_chttp2_transport(
       exec_ctx, grpc_server_get_channel_args(server), tcp, 0);
   setup_transport(exec_ctx, server, transport);
-  # 开始读取
+  // 开始读取
   grpc_chttp2_transport_start_reading(exec_ctx, transport, NULL, 0);
 }
 {% endhighlight %}
@@ -438,10 +239,24 @@ void grpc_chttp2_transport_start_reading(grpc_exec_ctx *exec_ctx,
   grpc_chttp2_transport *t = (grpc_chttp2_transport *)transport;
   REF_TRANSPORT(t, "recv_data"); /* matches unref inside recv_data */
   gpr_slice_buffer_addn(&t->read_buffer, slices, nslices);
-  # 接收数据
+  // 接收数据
   recv_data(exec_ctx, t, 1);
 }
 {% endhighlight %}
 
 {:.center}
 src/transport/chttp2_transport.c
+
+TODO: coming soon
+
+### 相关文章
+
+1. [Basic](/posts/grpc-python-bind-source-code-1/)
+2. [Server](/posts/grpc-python-bind-source-code-2/)
+3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
+4. [Stub](/posts/grpc-python-bind-source-code-4/)
+5. [Channel and Call](/posts/grpc-python-bind-source-code-5/)
+
+### 有关 C Core 的笔记
+
+1. [Notes of gRPC](https://github.com/GuoJing/book-notes/tree/master/grpc)
