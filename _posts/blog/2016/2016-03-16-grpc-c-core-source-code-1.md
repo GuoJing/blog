@@ -7,6 +7,8 @@ tags: gRPC Python Google Source Coding HTTP2 C Core
 ---
 ### Overview
 
+**WIP: Working in progress**
+
 在 [gRPC Python 源码浅析 - Server](/posts/grpc-python-bind-source-code-2/) 中了解了 gRPC Python 绑定是如何调用 C Core 代码启动一个 server 的，现在深入的了解 C Core 是如何启动一个 Server 的。
 
 在这之前，大概有一个图可以帮助我们了解。
@@ -45,7 +47,7 @@ void grpc_tcp_server_start(grpc_exec_ctx *exec_ctx, grpc_tcp_server *s,
                            grpc_tcp_server_cb on_accept_cb,
                            void *on_accept_cb_arg) {
   size_t i;
-  // s 是 tcp server
+  // sp 是 tcp server
   grpc_tcp_listener *sp;
   GPR_ASSERT(on_accept_cb);
   gpr_mu_lock(&s->mu);
@@ -235,27 +237,7 @@ static void new_transport(grpc_exec_ctx *exec_ctx, void *server,
 {:.center}
 src/surface/server_chttp2.c
 
-{% highlight c %}
-void grpc_chttp2_transport_start_reading(grpc_exec_ctx *exec_ctx,
-                                         grpc_transport *transport,
-                                         gpr_slice *slices, size_t nslices) {
-  grpc_chttp2_transport *t = (grpc_chttp2_transport *)transport;
-  REF_TRANSPORT(t, "recv_data"); /* matches unref inside recv_data */
-  gpr_slice_buffer_addn(&t->read_buffer, slices, nslices);
-  // 接收数据
-  // recv_data 函数接收了 frame 数据
-  // 这个函数中最重要的是 grpc_chttp2_perform_read 这个函数
-  // grpc_chttp2_perform_read 这个函数调用了 init_frame_parser
-  // 然后调用了 init_header_frame_parser
-  // 最后走到 grpc_chttp2_parsing_accept_stream
-  // 就会调用到高级的 set_accept_stream_fn 这个函数
-  // 最后就走到了 accept_stream
-  recv_data(exec_ctx, t, 1);
-}
-{% endhighlight %}
-
-{:.center}
-src/transport/chttp2_transport.c
+### Create Http2 Transport
 
 在调用 *grpc_create_chttp2_transport* 这个函数的时候，创建了一个 http2 transport 对象，并对这个对象进行了初始化。
 
@@ -273,6 +255,8 @@ grpc_transport *grpc_create_chttp2_transport(
 src/transport/chttp2_transport.c
 
 地方除了初始化内存分配以外，还调用了 *init_transport* 来初始化 transport，这一块的代码在后面传输层的地方再看。
+
+### Setup Transport
 
 初始化完成后，调用了 *setup_transport* 方法。
 
@@ -418,7 +402,268 @@ void grpc_server_setup_transport(grpc_exec_ctx *exec_ctx, grpc_server *s,
 {:.center}
 src/core/surface/server.c
 
-从上可以知道，一个操作的 *accept_stream* 已经定义好。
+### Receive Data
+
+在创建 HTTP2 Transport 之后，就可以看 start reading 这件事了。这个函数主要是获取传输的数据。
+
+{% highlight c %}
+void grpc_chttp2_transport_start_reading(grpc_exec_ctx *exec_ctx,
+                                         grpc_transport *transport,
+                                         gpr_slice *slices, size_t nslices) {
+  grpc_chttp2_transport *t = (grpc_chttp2_transport *)transport;
+  REF_TRANSPORT(t, "recv_data"); /* matches unref inside recv_data */
+  gpr_slice_buffer_addn(&t->read_buffer, slices, nslices);
+  // 接收数据
+  // recv_data 函数接收了 frame 数据
+  // 这个函数中最重要的是 grpc_chttp2_perform_read 这个函数
+  // grpc_chttp2_perform_read 这个函数调用了 init_frame_parser
+  // 这个 init_frame_parser 根据不同的 frame 类型调用不同的函数
+  // 举例如果是 header frame 则会走到 init_header_frame_parser
+  // 最后走到 grpc_chttp2_parsing_accept_stream
+  // 就会调用到高级的 t->channel_callback.accept_stream 这个函数
+  // 而这个函数就是 op->set_accept_stream_fn
+  // 最后这个函数就是 accept_stream
+  recv_data(exec_ctx, t, 1);
+}
+{% endhighlight %}
+
+{:.center}
+src/transport/chttp2_transport.c
+
+现在看看 recv_data。
+
+{% highlight c %}
+/* tcp read callback */
+static void recv_data(grpc_exec_ctx *exec_ctx, void *tp, bool success) {
+  size_t i;
+  int keep_reading = 0;
+  grpc_chttp2_transport *t = tp;
+  grpc_chttp2_transport_global *transport_global = &t->global;
+  grpc_chttp2_transport_parsing *transport_parsing = &t->parsing;
+  grpc_chttp2_stream_global *stream_global;
+
+  GPR_TIMER_BEGIN("recv_data", 0);
+
+  lock(t);
+  i = 0;
+  GPR_ASSERT(!t->parsing_active);
+  if (!t->closed) {
+    t->parsing_active = 1;
+    /* merge stream lists */
+    grpc_chttp2_stream_map_move_into(&t->new_stream_map,
+                                     &t->parsing_stream_map);
+    grpc_chttp2_prepare_to_read(transport_global, transport_parsing);
+    gpr_mu_unlock(&t->mu);
+    GPR_TIMER_BEGIN("recv_data.parse", 0);
+    // 读取并调用 grpc_chttp2_perform_read
+    // 调用了 init_frame_parser
+    // 调用了 init_data_frame_parser
+    for (; i < t->read_buffer.count &&
+               grpc_chttp2_perform_read(exec_ctx, transport_parsing,
+                                        t->read_buffer.slices[i]);
+         i++)
+      ;
+    GPR_TIMER_END("recv_data.parse", 0);
+    gpr_mu_lock(&t->mu);
+    /* copy parsing qbuf to global qbuf */
+    gpr_slice_buffer_move_into(&t->parsing.qbuf, &t->global.qbuf);
+    if (i != t->read_buffer.count) {
+      unlock(exec_ctx, t);
+      lock(t);
+      drop_connection(exec_ctx, t);
+    }
+    /* merge stream lists */
+    grpc_chttp2_stream_map_move_into(&t->new_stream_map,
+                                     &t->parsing_stream_map);
+    transport_global->concurrent_stream_count =
+        (uint32_t)grpc_chttp2_stream_map_size(&t->parsing_stream_map);
+    if (transport_parsing->initial_window_update != 0) {
+      grpc_chttp2_stream_map_for_each(&t->parsing_stream_map,
+                                      update_global_window, t);
+      transport_parsing->initial_window_update = 0;
+    }
+    /* handle higher level things */
+    grpc_chttp2_publish_reads(exec_ctx, transport_global, transport_parsing);
+    t->parsing_active = 0;
+    /* handle delayed transport ops (if there is one) */
+    if (t->post_parsing_op) {
+      grpc_transport_op *op = t->post_parsing_op;
+      t->post_parsing_op = NULL;
+      perform_transport_op_locked(exec_ctx, t, op);
+      gpr_free(op);
+    }
+    /* if a stream is in the stream map, and gets cancelled, we need to ensure
+     * we are not parsing before continuing the cancellation to keep things in
+     * a sane state */
+    while (grpc_chttp2_list_pop_closed_waiting_for_parsing(transport_global,
+                                                           &stream_global)) {
+      GPR_ASSERT(stream_global->in_stream_map);
+      GPR_ASSERT(stream_global->write_closed);
+      GPR_ASSERT(stream_global->read_closed);
+      remove_stream(exec_ctx, t, stream_global->id);
+      GRPC_CHTTP2_STREAM_UNREF(exec_ctx, stream_global, "chttp2");
+    }
+  }
+  if (!success || i != t->read_buffer.count || t->closed) {
+    drop_connection(exec_ctx, t);
+    read_error_locked(exec_ctx, t);
+  } else if (!t->closed) {
+    keep_reading = 1;
+    REF_TRANSPORT(t, "keep_reading");
+    prevent_endpoint_shutdown(t);
+  }
+  gpr_slice_buffer_reset_and_unref(&t->read_buffer);
+  unlock(exec_ctx, t);
+
+  if (keep_reading) {
+    grpc_endpoint_read(exec_ctx, t->ep, &t->read_buffer, &t->recv_data);
+    allow_endpoint_shutdown_unlocked(exec_ctx, t);
+    UNREF_TRANSPORT(exec_ctx, t, "keep_reading");
+  } else {
+    UNREF_TRANSPORT(exec_ctx, t, "recv_data");
+  }
+
+  GPR_TIMER_END("recv_data", 0);
+}
+{% endhighlight %}
+
+{:.center}
+src/transport/chttp2_transport.c
+
+可以看看 *init_frame_parser* 函数。
+
+{% highlight c %}
+static int init_frame_parser(grpc_exec_ctx *exec_ctx,
+                             grpc_chttp2_transport_parsing *transport_parsing) {
+  if (transport_parsing->expect_continuation_stream_id != 0) {
+    if (transport_parsing->incoming_frame_type !=
+        GRPC_CHTTP2_FRAME_CONTINUATION) {
+      gpr_log(GPR_ERROR, "Expected CONTINUATION frame, got frame type %02x",
+              transport_parsing->incoming_frame_type);
+      return 0;
+    }
+    if (transport_parsing->expect_continuation_stream_id !=
+        transport_parsing->incoming_stream_id) {
+      gpr_log(GPR_ERROR,
+              "Expected CONTINUATION frame for grpc_chttp2_stream %08x, got "
+              "grpc_chttp2_stream %08x",
+              transport_parsing->expect_continuation_stream_id,
+              transport_parsing->incoming_stream_id);
+      return 0;
+    }
+    return init_header_frame_parser(exec_ctx, transport_parsing, 1);
+  }
+  // 根据不同的帧类型调用不同的函数
+  switch (transport_parsing->incoming_frame_type) {
+    case GRPC_CHTTP2_FRAME_DATA:
+      return init_data_frame_parser(exec_ctx, transport_parsing);
+    case GRPC_CHTTP2_FRAME_HEADER:
+      return init_header_frame_parser(exec_ctx, transport_parsing, 0);
+    case GRPC_CHTTP2_FRAME_CONTINUATION:
+      gpr_log(GPR_ERROR, "Unexpected CONTINUATION frame");
+      return 0;
+    case GRPC_CHTTP2_FRAME_RST_STREAM:
+      return init_rst_stream_parser(exec_ctx, transport_parsing);
+    case GRPC_CHTTP2_FRAME_SETTINGS:
+      return init_settings_frame_parser(exec_ctx, transport_parsing);
+    case GRPC_CHTTP2_FRAME_WINDOW_UPDATE:
+      return init_window_update_frame_parser(exec_ctx, transport_parsing);
+    case GRPC_CHTTP2_FRAME_PING:
+      return init_ping_parser(exec_ctx, transport_parsing);
+    case GRPC_CHTTP2_FRAME_GOAWAY:
+      return init_goaway_parser(exec_ctx, transport_parsing);
+    default:
+      gpr_log(GPR_ERROR, "Unknown frame type %02x",
+              transport_parsing->incoming_frame_type);
+      return init_skip_frame_parser(exec_ctx, transport_parsing, 0);
+  }
+}
+{% endhighlight %}
+
+{:.center}
+transport/chttp2/parsing.c
+
+假设是读的 *GRPC_CHTTP2_FRAME_DATA* 那么，调用的函数就是 *init_data_frame_parser*。
+
+{% highlight c %}
+static int init_data_frame_parser(
+    grpc_exec_ctx *exec_ctx, grpc_chttp2_transport_parsing *transport_parsing) {
+  grpc_chttp2_stream_parsing *stream_parsing =
+      grpc_chttp2_parsing_lookup_stream(transport_parsing,
+                                        transport_parsing->incoming_stream_id);
+  grpc_chttp2_parse_error err = GRPC_CHTTP2_PARSE_OK;
+  if (!stream_parsing || stream_parsing->received_close)
+    return init_skip_frame_parser(exec_ctx, transport_parsing, 0);
+  if (err == GRPC_CHTTP2_PARSE_OK) {
+    err = update_incoming_window(exec_ctx, transport_parsing, stream_parsing);
+  }
+  if (err == GRPC_CHTTP2_PARSE_OK) {
+    err = grpc_chttp2_data_parser_begin_frame(
+        &stream_parsing->data_parser, transport_parsing->incoming_frame_flags);
+  }
+  switch (err) {
+    // 如果 parse 成功
+    case GRPC_CHTTP2_PARSE_OK:
+      // 设置 transport_parsing stream
+      transport_parsing->incoming_stream = stream_parsing;
+      // 设置 parser
+      transport_parsing->parser = grpc_chttp2_data_parser_parse;
+      // 设置 parser_data
+      transport_parsing->parser_data = &stream_parsing->data_parser;
+      return 1;
+    case GRPC_CHTTP2_STREAM_ERROR:
+      stream_parsing->received_close = 1;
+      stream_parsing->saw_rst_stream = 1;
+      stream_parsing->rst_stream_reason = GRPC_CHTTP2_PROTOCOL_ERROR;
+      gpr_slice_buffer_add(
+          &transport_parsing->qbuf,
+          grpc_chttp2_rst_stream_create(transport_parsing->incoming_stream_id,
+                                        GRPC_CHTTP2_PROTOCOL_ERROR));
+      return init_skip_frame_parser(exec_ctx, transport_parsing, 0);
+    case GRPC_CHTTP2_CONNECTION_ERROR:
+      return 0;
+  }
+  GPR_UNREACHABLE_CODE(return 0);
+}
+{% endhighlight %}
+
+{:.center}
+transport/chttp2/parsing.c
+
+### HEAD FRAME
+
+如果 Frame 类型是 *GRPC_CHTTP2_FRAME_HEADER*，那么就走的是 *init_header_frame_parser* 函数。那么这个函数会走到 *grpc_chttp2_parsing_accept_stream* 上。
+
+{% highlight c %}
+grpc_chttp2_stream_parsing *grpc_chttp2_parsing_accept_stream(
+    grpc_exec_ctx *exec_ctx, grpc_chttp2_transport_parsing *transport_parsing,
+    uint32_t id) {
+  grpc_chttp2_stream *accepting;
+  grpc_chttp2_transport *t = TRANSPORT_FROM_PARSING(transport_parsing);
+  GPR_ASSERT(t->accepting_stream == NULL);
+  t->accepting_stream = &accepting;
+  // t 为 transport ...
+  // t->channel_callback.accept_stream
+  // 其实这里就是
+  // op->set_accept_stream_fn(op->accept_stream_user_data)
+  // 而 t->channel_callback.accept_stream_user_data = 
+  //       op->set_accept_stream_user_data;
+  t->channel_callback.accept_stream(exec_ctx,
+                                    t->channel_callback.accept_stream_user_data,
+                                    &t->base, (void *)(uintptr_t)id);
+  t->accepting_stream = NULL;
+  return &accepting->parsing;
+}
+{% endhighlight %}
+
+{:.center}
+src/core/transport/chttp2_transport.c
+
+而从之前的代码可以知道 *set_accept_stream_fn* 就是 *accept stream*。
+
+### Accept Stream
+
+所以我们知道最终会走到 accept stream 这个函数，现在就来看看这个函数做了什么。
 
 {% highlight c %}
 static void accept_stream(grpc_exec_ctx *exec_ctx, void *cd,
@@ -450,7 +695,7 @@ static void accept_stream(grpc_exec_ctx *exec_ctx, void *cd,
 {:.center}
 src/core/surface/server.c
 
-上面代码在接收流的时候调用，其中 op 是一个 *grpc_op*，会走到 *grpc_call_start_batch_and_execute*。虽然之前在 [Channel and Call](/posts/grpc-python-bind-source-code-5/) 中看了这个代码，现在我们要更深入的了解这个代码。
+其中 op 是一个 *grpc_op*，会走到 *grpc_call_start_batch_and_execute*。虽然之前在 [Channel and Call](/posts/grpc-python-bind-source-code-5/) 中看了这个代码，现在我们要更深入的了解这个代码。
 
 {% highlight c %}
 // grpc_call_start_batch_and_execute 实际上就是调用 call_start_batch
@@ -523,89 +768,27 @@ done_with_error:
 {:.center}
 src/core/surface/call.c
 
-可以看到最后执行到 *execute_op* 函数，这个函数只是调用 *call->elem->filter->start_transport_stream_op*。但之前服务注册的 *grpc_op* 的 *recv_initial_metadata* 为 *calld->initial_metadata*。再往回看就能看到 *call_data* 注册绑定的 channel 和 transport。
+可以看到最后执行到 *execute_op* 函数。
 
 {% highlight c %}
-// op.set_accept_stream_fn = accept_stream;
-if (op->set_accept_stream) {
-    t->channel_callback.accept_stream = op->set_accept_stream_fn;
-    t->channel_callback.accept_stream_user_data =
-        op->set_accept_stream_user_data;
+static void execute_op(grpc_exec_ctx *exec_ctx, grpc_call *call,
+                       grpc_transport_stream_op *op) {
+  grpc_call_element *elem;
+
+  GPR_TIMER_BEGIN("execute_op", 0);
+  elem = CALL_ELEM_FROM_CALL(call, 0);
+  op->context = call->context;
+  elem->filter->start_transport_stream_op(exec_ctx, elem, op);
+  GPR_TIMER_END("execute_op", 0);
 }
 {% endhighlight %}
 
 {:.center}
-src/core/transport/chttp2_transport.c
+src/core/surface/call.c
 
-在处理到函数 *grpc_chttp2_parsing_accept_stream* 的时候，会调用。
+这时候我们最需要知道的就是 elem->filter 是什么。就需要知道 call 是什么。call 是来自 accept stream 的，那么就是通过 *grpc_call_create* 中第一个参数 *chand->channel* 来创建。其中有 *grpc_call_stack_init*，那么就知道这个 elem 的 channel 就是 *chand->channel*。
 
-{% highlight c %}
-grpc_chttp2_stream_parsing *grpc_chttp2_parsing_accept_stream(
-    grpc_exec_ctx *exec_ctx, grpc_chttp2_transport_parsing *transport_parsing,
-    uint32_t id) {
-  grpc_chttp2_stream *accepting;
-  grpc_chttp2_transport *t = TRANSPORT_FROM_PARSING(transport_parsing);
-  GPR_ASSERT(t->accepting_stream == NULL);
-  t->accepting_stream = &accepting;
-  // t 为 transport ...
-  // t->channel_callback.accept_stream
-  t->channel_callback.accept_stream(exec_ctx,
-                                    t->channel_callback.accept_stream_user_data,
-                                    &t->base, (void *)(uintptr_t)id);
-  t->accepting_stream = NULL;
-  return &accepting->parsing;
-}
-{% endhighlight %}
-
-{:.center}
-src/core/transport/chttp2_transport.c
-
-上述代码最终会走到 *got_initial_metadata* 这个方法会调用 *start_new_rpc*。*start_new_rpc* 之后会调用 *finish_start_new_rpc*，调用完成后。会继续走到 *begin_call*。
-
-{% highlight c %}
-static void begin_call(grpc_exec_ctx *exec_ctx, grpc_server *server,
-                       call_data *calld, requested_call *rc) {
-  grpc_op ops[1];
-  grpc_op *op = ops;
-
-  memset(ops, 0, sizeof(ops));
-
-  // 当 metada 被读取之后马上被调用
-  // 插入到 completion queue
-  grpc_call_set_completion_queue(exec_ctx, calld->call, rc->cq_bound_to_call);
-  grpc_closure_init(&rc->publish, publish_registered_or_batch, rc);
-  *rc->call = calld->call;
-  calld->cq_new = rc->cq_for_notification;
-
-  switch (rc->type) {
-    case BATCH_CALL:
-      cpstr(&rc->data.batch.details->host,
-            &rc->data.batch.details->host_capacity, calld->host);
-      cpstr(&rc->data.batch.details->method,
-            &rc->data.batch.details->method_capacity, calld->path);
-      rc->data.batch.details->deadline = calld->deadline;
-      break;
-    case REGISTERED_CALL:
-      *rc->data.registered.deadline = calld->deadline;
-      if (rc->data.registered.optional_payload) {
-        op->op = GRPC_OP_RECV_MESSAGE;
-        op->data.recv_message = rc->data.registered.optional_payload;
-        op++;
-      }
-      break;
-    default:
-      GPR_UNREACHABLE_CODE(return );
-  }
-
-  grpc_call_start_batch_and_execute(exec_ctx, calld->call, ops,
-                                    (size_t)(op - ops), &rc->publish);
-}
-{% endhighlight %}
-
-{:.center}
-src/core/surface/server.c
-
-上面就是将一个 call 放入到一个 CompletionQueue 中。等待 Server 端循环读取 CompletionQueue。
+那么看 *chand->channel* 是 *t->channel_callback.accept_stream_user_data* 。而这里的 *stream_user_data* 就是 *chand*，所以 channel 就是 *grpc_server_setup_transport* 函数创建的 channel。
 
 ### 相关文章
 
