@@ -127,6 +127,7 @@ class Server(_types.Server):
         cygrpc.ChannelArg(key, value) for key, value in args)
     # 终于到 cython 中的 Server 了
     self.server = cygrpc.Server(args)
+    # 初始化的时候注册一个 completion queue
     self.server.register_completion_queue(completion_queue.completion_queue)
     self.server_queue = completion_queue
 
@@ -243,6 +244,14 @@ grpc_server *grpc_server_create_from_filters(
 {:.center}
 core/surface/server.c
 
+上述代码直接可以概括为下图。
+
+{:.center}
+![gRPC Server Create Filter](/images/2016/grpc-server-create-filter.png){:style="max-width: 80%"}
+
+{:.center}
+gRPC Server Create
+
 其中 *server_surface_filter* 如下。
 
 {% highlight c %}
@@ -269,6 +278,8 @@ cdef class Server:
     if self.is_started:
       raise ValueError("the server has already started")
     self.backup_shutdown_queue = CompletionQueue()
+    # 注册一个 completion queue
+    # 一个 server 可以有多个 queue
     self.register_completion_queue(self.backup_shutdown_queue)
     self.is_started = True
     # 终于，我们看到调用到 grpc c core 的代码了

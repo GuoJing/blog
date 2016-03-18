@@ -435,7 +435,26 @@ typedef struct {
 {:.center}
 src/core/channel/channel_stack.h
 
-所以，由此可见，一个 Channel 创建后有多个 filter，每个 filter 做的事情也不一样，如果要看 *start_transport_stream_op*，我们需要到特定的 filter 里去看如何实现。例如 *grpc_client_channel_filter* 就要到 *grpc_client_channel_filter* 的代码中查看。
+所以，由此可见，一个 Channel 创建后有多个 filter，每个 filter 做的事情也不一样，如果要看 *start_transport_stream_op*[^1]，我们需要到特定的 filter 里去看如何实现，例如。
+
+[^1]: 创建 Sever 的时候的第一个 Filter。
+
+{% highlight c %}
+// 定义了一个 filter
+// filter 的 start_transport_stream_op = server_start_transport_stream_op
+// filter 的 start_transport_op = grpc_channel_next_op
+static const grpc_channel_filter server_surface_filter = {
+    server_start_transport_stream_op, grpc_channel_next_op, sizeof(call_data),
+    init_call_elem, grpc_call_stack_ignore_set_pollset, destroy_call_elem,
+    sizeof(channel_data), init_channel_elem, destroy_channel_elem,
+    grpc_call_next_get_peer, "server",
+};
+{% endhighlight %}
+
+{:.center}
+core/surface/server.c
+
+所以 *grpc_client_channel_filter* 就要到 *grpc_client_channel_filter* 相关的代码中查看。
 
 {% highlight c %}
 static void init_channel_elem(grpc_exec_ctx *exec_ctx,
