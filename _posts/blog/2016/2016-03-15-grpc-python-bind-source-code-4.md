@@ -1456,6 +1456,18 @@ static void finish_send_message(grpc_exec_ctx *exec_ctx,
 {:.center}
 src/core/channel/compress_filter.c
 
+{% highlight c %}
+static void send_done(grpc_exec_ctx *exec_ctx, void *elemp, bool success) {
+  grpc_call_element *elem = elemp;
+  call_data *calld = elem->call_data;
+  gpr_slice_buffer_reset_and_unref(&calld->slices);
+  calld->post_send->cb(exec_ctx, calld->post_send->cb_arg, success);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
 暂时，可以当做在这里进行了传输，接下来具体分析是如何实现传输的，但在这之前，还需要了解 Channel Stack 和 Call Stack。以及 Channel 的创建流程。
 
 ### 相关文章
