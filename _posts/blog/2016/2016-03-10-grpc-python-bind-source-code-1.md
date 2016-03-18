@@ -158,6 +158,7 @@ CompletionQueue 是任务队列，gRPC 实现了一个简单的事件机制，�
 3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
 5. [Channel and Call](/posts/grpc-python-bind-source-code-5/)
+6. [TCP Server](/posts/grpc-c-core-source-code-1/)
 
 ### 有关 C Core 的笔记
 

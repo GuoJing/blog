@@ -1032,6 +1032,7 @@ src/core/channel/channel_stack.c
 3. [CompletionQueue](/posts/grpc-python-bind-source-code-3/)
 4. [Stub](/posts/grpc-python-bind-source-code-4/)
 5. [Channel and Call](/posts/grpc-python-bind-source-code-5/)
+6. [TCP Server](/posts/grpc-c-core-source-code-1/)
 
 ### 有关 C Core 的笔记
 
