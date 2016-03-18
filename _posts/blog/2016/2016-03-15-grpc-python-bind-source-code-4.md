@@ -1373,7 +1373,88 @@ static void execute_op(grpc_exec_ctx *exec_ctx, grpc_call *call,
 {:.center}
 src/core/sureface/call.c
 
-最后，到达了 *start_transport_stream_op*。
+最后，到达了 *start_transport_stream_op*。这个函数和具体的 element 的 filter 有关。这里是 *compress_filter*，所以。代码是。
+
+{% highlight c %}
+static void compress_start_transport_stream_op(grpc_exec_ctx *exec_ctx,
+                                               grpc_call_element *elem,
+                                               grpc_transport_stream_op *op) {
+  call_data *calld = elem->call_data;
+
+  GPR_TIMER_BEGIN("compress_start_transport_stream_op", 0);
+
+  if (op->send_initial_metadata) {
+    process_send_initial_metadata(elem, op->send_initial_metadata);
+  }
+  if (op->send_message != NULL && !skip_compression(elem) &&
+      0 == (op->send_message->flags & GRPC_WRITE_NO_COMPRESS)) {
+    calld->send_op = *op;
+    calld->send_length = op->send_message->length;
+    calld->send_flags = op->send_message->flags;
+    // 调用了这里
+    continue_send_message(exec_ctx, elem);
+  } else {
+    /* pass control down the stack */
+    grpc_call_next_op(exec_ctx, elem, op);
+  }
+
+  GPR_TIMER_END("compress_start_transport_stream_op", 0);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
+继续读。
+
+{% highlight c %}
+static void continue_send_message(grpc_exec_ctx *exec_ctx,
+                                  grpc_call_element *elem) {
+  call_data *calld = elem->call_data;
+  while (grpc_byte_stream_next(exec_ctx, calld->send_op.send_message,
+                               &calld->incoming_slice, ~(size_t)0,
+                               &calld->got_slice)) {
+    gpr_slice_buffer_add(&calld->slices, calld->incoming_slice);
+    if (calld->send_length == calld->slices.length) {
+      finish_send_message(exec_ctx, elem);
+      break;
+    }
+  }
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
+结束处理。
+
+{% highlight c %}
+static void finish_send_message(grpc_exec_ctx *exec_ctx,
+                                grpc_call_element *elem) {
+  call_data *calld = elem->call_data;
+  int did_compress;
+  gpr_slice_buffer tmp;
+  gpr_slice_buffer_init(&tmp);
+  did_compress =
+      grpc_msg_compress(calld->compression_algorithm, &calld->slices, &tmp);
+  if (did_compress) {
+    gpr_slice_buffer_swap(&calld->slices, &tmp);
+    calld->send_flags |= GRPC_WRITE_INTERNAL_COMPRESS;
+  }
+  gpr_slice_buffer_destroy(&tmp);
+
+  grpc_slice_buffer_stream_init(&calld->replacement_stream, &calld->slices,
+                                calld->send_flags);
+  calld->send_op.send_message = &calld->replacement_stream.base;
+  calld->post_send = calld->send_op.on_complete;
+  calld->send_op.on_complete = &calld->send_done;
+
+  grpc_call_next_op(exec_ctx, elem, &calld->send_op);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
 
 暂时，可以当做在这里进行了传输，接下来具体分析是如何实现传输的，但在这之前，还需要了解 Channel Stack 和 Call Stack。以及 Channel 的创建流程。
 
