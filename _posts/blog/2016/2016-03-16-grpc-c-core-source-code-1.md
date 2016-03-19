@@ -7,8 +7,6 @@ tags: gRPC Python Google Source Coding HTTP2 C Core
 ---
 ### Overview
 
-**WIP: Working in progress**
-
 在 [gRPC Python 源码浅析 - Server](/posts/grpc-python-bind-source-code-2/) 中了解了 gRPC Python 绑定是如何调用 C Core 代码启动一个 server 的，现在深入的了解 C Core 是如何启动一个 Server 的。
 
 在这之前，大概有一个图可以帮助我们了解。
@@ -632,7 +630,7 @@ transport/chttp2/parsing.c
 
 ### HEAD FRAME
 
-如果 Frame 类型是 *GRPC_CHTTP2_FRAME_HEADER*，那么就走的是 *init_header_frame_parser* 函数。那么这个函数会走到 *grpc_chttp2_parsing_accept_stream* 上。
+在 HTTP2 中， HEADER FRAME 的作用是打开一个 stream。如果 Frame 类型是 *GRPC_CHTTP2_FRAME_HEADER*，那么就走的是 *init_header_frame_parser* 函数。那么这个函数会走到 *grpc_chttp2_parsing_accept_stream* 上。
 
 {% highlight c %}
 grpc_chttp2_stream_parsing *grpc_chttp2_parsing_accept_stream(
@@ -892,9 +890,14 @@ src/core/channel/http_server_filter.c
 
 ### Connected Channel Filter
 
-再看看还有的 *grpc_connected_channel_filter*。
+再看看还有的 *grpc_connected_channel_filter*。先看定义。
 
 {% highlight c %}
+const grpc_channel_filter grpc_connected_channel_filter = {
+    con_start_transport_stream_op, con_start_transport_op, sizeof(call_data),
+    init_call_elem, set_pollset, destroy_call_elem, sizeof(channel_data),
+    init_channel_elem, destroy_channel_elem, con_get_peer, "connected",
+};
 {% endhighlight %}
 
 {:.center}
@@ -955,7 +958,7 @@ static void con_start_transport_stream_op(grpc_exec_ctx *exec_ctx,
 {:.center}
 src/core/channel/connected_channel.c
 
-然后，就是 *perform_stream_op_locked* 啦。最终就走到了 *grpc_chttp2_complete_closure_step* 函数。将回调放入了 closure 列表中。
+然后，就是 *perform_stream_op_locked*。最终就走到了 *grpc_chttp2_complete_closure_step* 函数。将回调放入了 closure 列表中。
 
 {% highlight c %}
 void grpc_chttp2_complete_closure_step(grpc_exec_ctx *exec_ctx,
