@@ -9,7 +9,168 @@ tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
 
 在了解 Server 是怎么启动的，Client 是怎么创建一个 Call 传输 Ticket 之后，实际上还有很多盲点，最主要的盲点是为什么一个 Call 到 Server 就可以返回呢？这个过程还没有完全的了解清楚，所以需要了解 gRPC 中 Channel 的概念。
 
-### Channel
+### Channel and Call
+
+Channel 和 Call 在 gRPC C Core 中是非常底层的一个数据结构，整体来看如下图所示。
+
+{:.center}
+![Channel Stack and Call Stack](/images/2016/grpc-channel-stack-overview.png){:style="max-width: 800px"}
+
+{:.center}
+Channel Stack and Call Stack
+
+上图是一个 Channel Stack 和 Call Stack 的大概的一个结构图，了解了这个图之后我们就可以更加深入的了解每一个对象的意义。
+
+### Channel Stack
+
+{% highlight c %}
+struct grpc_channel_stack {
+  grpc_stream_refcount refcount;
+  size_t count;
+  size_t call_stack_size;
+};
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+Channel Stack 关联的还有 Channel Element，在此之前先看 Channel Args 定义。
+
+{% highlight c %}
+typedef struct {
+  grpc_channel_stack *channel_stack;
+  const grpc_channel_args *channel_args;
+  int is_first;
+  int is_last;
+} grpc_channel_element_args;
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+Channel Element Args 定义。
+
+{% highlight c %}
+struct grpc_channel_element {
+  const grpc_channel_filter *filter;
+  void *channel_data;
+};
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+可见，Channel Element 用来追踪其中的 filter。Channel Element Args 则保存了 Element 的一些参数。Channel Stack 和 Channel Element 的数据结构相对简单。
+
+### Call Stack
+
+Call Stack 和 Channel Stack 很类似，那么就无须废话，直接看代码。
+
+{% highlight c %}
+struct grpc_call_stack {
+  grpc_stream_refcount refcount;
+  size_t count;
+};
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+继续看 Call Element。
+
+{% highlight c %}
+struct grpc_call_element {
+  const grpc_channel_filter *filter;
+  void *channel_data;
+  void *call_data;
+};
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+Call Element Args 和 Channel 类似。
+
+{% highlight c %}
+typedef struct {
+  grpc_call_stack *call_stack;
+  const void *server_transport_data;
+  grpc_call_context_element *context;
+} grpc_call_element_args;
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+上面就了解了两个非常重要的数据结构。
+
+### Channel Filter
+
+除了上面的基本数据结构，每个 Channel Element 和 Call Element 都包含，Channel Filter 结构。代码如下，具体的作用也写在了注释中。
+
+{% highlight c %}
+/* Channel filters specify:
+   1. the amount of memory needed in the channel & call (via the sizeof_XXX
+      members) channel & call 的内存使用量
+   2. functions to initialize and destroy channel & call data
+      (init_XXX, destroy_XXX) 定义接口比如创建和销毁 channel & call data
+   3. functions to implement call operations and channel operations (call_op,
+      channel_op) 定义 channel 和 call 操作的接口
+   4. a name, which is useful when debugging
+
+   Members are laid out in approximate frequency of use order. */
+typedef struct {
+  /* 很熟悉，就是要看的 start_transport_stream_op */
+  void (*start_transport_stream_op)(grpc_exec_ctx *exec_ctx,
+                                    grpc_call_element *elem,
+                                    grpc_transport_stream_op *op);
+  /* Channel 级别的操作，比如 new calls, transport 和 closure */
+  /* 可以看  grpc_channel_next_op */
+  void (*start_transport_op)(grpc_exec_ctx *exec_ctx,
+                             grpc_channel_element *elem, grpc_transport_op *op);
+
+  size_t sizeof_call_data;
+  /*
+     初始化 call data
+     elem 在 call 开始的时候被创建
+     server_transport_data 是一个不透明的指针，如果是 NULL 则
+     这个 call 来自客户端，否则来自服务端，大多数的 filter 不需要
+     关心这个参数
+  */
+  void (*init_call_elem)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
+                         grpc_call_element_args *args);
+  void (*set_pollset)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
+                      grpc_pollset *pollset);
+  /* 销毁 call data */
+  void (*destroy_call_elem)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem);
+
+  size_t sizeof_channel_data;
+  /*
+     初始化 channel elemment
+     is_first, is_last 标志了该 element 在 stack 中的位置
+  */
+  void (*init_channel_elem)(grpc_exec_ctx *exec_ctx, grpc_channel_element *elem,
+                            grpc_channel_element_args *args);
+  /* 销毁 channel element */
+  void (*destroy_channel_elem)(grpc_exec_ctx *exec_ctx,
+                               grpc_channel_element *elem);
+
+  /* 实现 grpc_call_get_peer() */
+  char *(*get_peer)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem);
+
+  /* 该 filter 的名字，用于调试 */
+  const char *name;
+} grpc_channel_filter;
+{% endhighlight %}
+
+{:.center}
+src/core/channel/channel_stack.h
+
+当创建一个 Channel 和 Call 的时候，会创建若干个 Element，每个 Element 都有一个 filter，每个 filter 做的事情不一样。一个 Channel 创建后有多个 filter。
+
+下面就来看创建 Channel 和创建 Call。
+
+### Channel Create
 
 在客户端创建 Client 的时候，需要创建 Channel 对象，代码如下。
 
@@ -193,6 +354,7 @@ grpc_channel *grpc_channel_create_from_filters(
   channel->registered_calls = NULL;
 
   channel->max_message_length = DEFAULT_MAX_MESSAGE_LENGTH;
+  // 根据 channel 的参数进行一些 channel 的设置
   if (args) {
     for (i = 0; i < args->num_args; i++) {
       if (0 == strcmp(args->args[i].key, GRPC_ARG_MAX_MESSAGE_LENGTH)) {
@@ -260,60 +422,7 @@ grpc_channel *grpc_channel_create_from_filters(
 {:.center}
 src/core/surface/channel.c
 
-从上面我们可以创建一个 Channel。但是 Channel 的数据结构还比较复杂，隐约我们发现 Channel 和 Call 之间有千丝万缕的联系。其中 *grpc_call_stack_init* 和 *grpc_channel_stack_init* 都很重要。所以我们需要画图来详细了解 Channel 和 Call 之间的关系。如果不清楚。还需要回头结合 [Stub](/posts/grpc-python-bind-source-code-4/) 和 C Core 一齐来看。
-
-### Channel and Call
-
-Channel 和 Call 在 gRPC C Core 中是非常底层的一个数据结构，整体来看如下图所示。
-
-{:.center}
-![Channel Stack and Call Stack](/images/2016/grpc-channel-stack-overview.png){:style="max-width: 800px"}
-
-{:.center}
-Channel Stack and Call Stack
-
-上图是一个 Channel Stack 和 Call Stack 的大概的一个结构图，了解了这个图之后我们就可以更加深入的了解每一个对象的意义。
-
-### Channel Stack
-
-{% highlight c %}
-struct grpc_channel_stack {
-  grpc_stream_refcount refcount;
-  size_t count;
-  size_t call_stack_size;
-};
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-Channel Stack 关联的还有 Channel Element，在此之前先看 Channel Args 定义。
-
-{% highlight c %}
-typedef struct {
-  grpc_channel_stack *channel_stack;
-  const grpc_channel_args *channel_args;
-  int is_first;
-  int is_last;
-} grpc_channel_element_args;
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-Channel Element Args 定义。
-
-{% highlight c %}
-struct grpc_channel_element {
-  const grpc_channel_filter *filter;
-  void *channel_data;
-};
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-可见，Channel Element 用来追踪其中的 filter。Channel Element Args 则保存了 Element 的一些参数。Channel Stack 和 Channel Element 的数据结构相对简单，看看是如何初始化这个 Channel Stack 的。
+下面看看 *grpc_channel_stack_init* 的使用。
 
 {% highlight c %}
 void grpc_channel_stack_init(grpc_exec_ctx *exec_ctx, int initial_refs,
@@ -338,23 +447,19 @@ void grpc_channel_stack_init(grpc_exec_ctx *exec_ctx, int initial_refs,
       ((char *)elems) +
       ROUND_UP_TO_ALIGNMENT_SIZE(filter_count * sizeof(grpc_channel_element));
 
-  /*
-    初始化每个 channel element
-    从 grpc_insecure_channel_create 代码可知
-    创建一个 channel 的时候 filters 最大不超过
-    MAX_FILTERS = 3 个
-    则 filter_count <= 3
-  */
+  /* init per-filter data */
   for (i = 0; i < filter_count; i++) {
-    // channel element args 初始化
     args.channel_stack = stack;
     args.channel_args = channel_args;
     args.is_first = i == 0;
     args.is_last = i == (filter_count - 1);
-    // channel element 初始化
-    // grpc_channel_element 类型
     elems[i].filter = filters[i];
     elems[i].channel_data = user_data;
+    // 注意这里！
+    // elems 会调用一次 elem.filter->init_channel_elem
+    // 每个不同的 filter 是不同的结果
+    // 从之前来看应该第一个 filter 是 compress_filter
+    // 第二个 filter 是 grpc_client_channel_filter
     elems[i].filter->init_channel_elem(exec_ctx, &elems[i], &args);
     user_data += ROUND_UP_TO_ALIGNMENT_SIZE(filters[i]->sizeof_channel_data);
     call_size += ROUND_UP_TO_ALIGNMENT_SIZE(filters[i]->sizeof_call_data);
@@ -373,88 +478,7 @@ src/core/channel/channel_stack.c
 
 上面的代码初始化了一个 Channel Stack，同时也初始化了每个 Channel Element。其中使用了 *init_channel_elem* 函数。这个函数根据 filter 的类型不同，调用的方法也不同。从之前创建 Channel 的代码来看有 *grpc_compress_filter* 和 *grpc_client_channel_filter*。
 
-### Channel Filter
-
-Channel Filter 代码如下，具体的作用也写在了注释中。
-
-{% highlight c %}
-/* Channel filters specify:
-   1. the amount of memory needed in the channel & call (via the sizeof_XXX
-      members) channel & call 的内存使用量
-   2. functions to initialize and destroy channel & call data
-      (init_XXX, destroy_XXX) 定义接口比如创建和销毁 channel & call data
-   3. functions to implement call operations and channel operations (call_op,
-      channel_op) 定义 channel 和 call 操作的接口
-   4. a name, which is useful when debugging
-
-   Members are laid out in approximate frequency of use order. */
-typedef struct {
-  /* 很熟悉，就是要看的 start_transport_stream_op */
-  void (*start_transport_stream_op)(grpc_exec_ctx *exec_ctx,
-                                    grpc_call_element *elem,
-                                    grpc_transport_stream_op *op);
-  /* Channel 级别的操作，比如 new calls, transport 和 closure */
-  /* 可以看  grpc_channel_next_op */
-  void (*start_transport_op)(grpc_exec_ctx *exec_ctx,
-                             grpc_channel_element *elem, grpc_transport_op *op);
-
-  size_t sizeof_call_data;
-  /*
-     初始化 call data
-     elem 在 call 开始的时候被创建
-     server_transport_data 是一个不透明的指针，如果是 NULL 则
-     这个 call 来自客户端，否则来自服务端，大多数的 filter 不需要
-     关心这个参数
-  */
-  void (*init_call_elem)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
-                         grpc_call_element_args *args);
-  void (*set_pollset)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
-                      grpc_pollset *pollset);
-  /* 销毁 call data */
-  void (*destroy_call_elem)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem);
-
-  size_t sizeof_channel_data;
-  /*
-     初始化 channel elemment
-     is_first, is_last 标志了该 element 在 stack 中的位置
-  */
-  void (*init_channel_elem)(grpc_exec_ctx *exec_ctx, grpc_channel_element *elem,
-                            grpc_channel_element_args *args);
-  /* 销毁 channel element */
-  void (*destroy_channel_elem)(grpc_exec_ctx *exec_ctx,
-                               grpc_channel_element *elem);
-
-  /* 实现 grpc_call_get_peer() */
-  char *(*get_peer)(grpc_exec_ctx *exec_ctx, grpc_call_element *elem);
-
-  /* 该 filter 的名字，用于调试 */
-  const char *name;
-} grpc_channel_filter;
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-所以，由此可见，一个 Channel 创建后有多个 filter，每个 filter 做的事情也不一样，如果要看 *start_transport_stream_op*[^1]，我们需要到特定的 filter 里去看如何实现，例如。
-
-[^1]: 创建 Sever 的时候的第一个 Filter。
-
-{% highlight c %}
-// 定义了一个 filter
-// filter 的 start_transport_stream_op = server_start_transport_stream_op
-// filter 的 start_transport_op = grpc_channel_next_op
-static const grpc_channel_filter server_surface_filter = {
-    server_start_transport_stream_op, grpc_channel_next_op, sizeof(call_data),
-    init_call_elem, grpc_call_stack_ignore_set_pollset, destroy_call_elem,
-    sizeof(channel_data), init_channel_elem, destroy_channel_elem,
-    grpc_call_next_get_peer, "server",
-};
-{% endhighlight %}
-
-{:.center}
-core/surface/server.c
-
-所以 *grpc_client_channel_filter* 就要到 *grpc_client_channel_filter* 相关的代码中查看。
+所以，每个 element 都会初始化一下，调用各个 filter 的 init 函数。例如，*grpc_client_channel_filter* 就要到 *grpc_client_channel_filter* 相关的代码中查看。
 
 {% highlight c %}
 static void init_channel_elem(grpc_exec_ctx *exec_ctx,
@@ -473,7 +497,7 @@ static void init_channel_elem(grpc_exec_ctx *exec_ctx,
   GPR_ASSERT(elem->filter == &grpc_client_channel_filter);
 
   gpr_mu_init(&chand->mu_config);
-  
+
   grpc_closure_init(&chand->on_config_changed, cc_on_config_changed, chand);
   chand->owning_stack = args->channel_stack;
   // 初始化 channel 连接状态为 GRPC_CHANNEL_IDLE
@@ -493,45 +517,7 @@ src/core/channel/client_channel.c
 {:.center}
 Channel Create 各元素之间的关系
 
-### Call Stack
-
-Call Stack 和 Channel Stack 很类似，那么就无须废话，直接看代码。
-
-{% highlight c %}
-struct grpc_call_stack {
-  grpc_stream_refcount refcount;
-  size_t count;
-};
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-继续看 Call Element。
-
-{% highlight c %}
-struct grpc_call_element {
-  const grpc_channel_filter *filter;
-  void *channel_data;
-  void *call_data;
-};
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
-
-Call Element Args 和 Channel 类似。
-
-{% highlight c %}
-typedef struct {
-  grpc_call_stack *call_stack;
-  const void *server_transport_data;
-  grpc_call_context_element *context;
-} grpc_call_element_args;
-{% endhighlight %}
-
-{:.center}
-src/core/channel/channel_stack.h
+### Create Call
 
 在上一篇关于 [Stub](/posts/grpc-python-bind-source-code-4/) 中详细讲解了创建一个 Call，现在再回来看创建 Call 的代码。
 
@@ -609,6 +595,7 @@ void grpc_call_stack_init(grpc_exec_ctx *exec_ctx,
     call_elems[i].channel_data = channel_elems[i].channel_data;
     // call->data 就是 user_data
     call_elems[i].call_data = user_data;
+    // 同样调用每个一个 filter 的 init_call_elem 方法
     call_elems[i].filter->init_call_elem(exec_ctx, &call_elems[i], &args);
     user_data +=
         ROUND_UP_TO_ALIGNMENT_SIZE(call_elems[i].filter->sizeof_call_data);
@@ -731,12 +718,28 @@ static int cc_pick_subchannel(grpc_exec_ctx *exec_ctx, void *elemp,
 {:.center}
 src/core/channel/client_channel.c
 
-### Filter?
+### 内存分配
 
-现在看了大多数的概念之后，我们还是主要来关注 *client_channel.c*。之前调用的是。
+{% highlight c %}
+// Channel stack is laid out as: {
+//     grpc_channel_stack stk;
+//     grpc_channel_element[stk.count];
+// }
+//
+// Call stack is laid out as: {
+//     grpc_call_stack stk;
+//     grpc_call_element[stk.count];
+// }
+{% endhighlight %}
+
+### Filter
+
+现在看了大多数的概念之后，应该可以得到一个结论就是。Call Element 和 Channel Element 都有 filter，filter 主要进行一些操作。而获得这些 Element ，主要是通过 Call Stack 和 Channel Stack 数据结构。
+
+我们还是主要来关注 *client_channel.c*。之前调用的是。
 
     elem->filter->start_transport_stream_op
-    
+
 在 *client_channel.c* 这里，代码如下。
 
 {% highlight c %}
@@ -858,36 +861,87 @@ void grpc_subchannel_call_process_op(grpc_exec_ctx *exec_ctx,
 {:.center}
 src/core/client_config/subchannel.c
 
-然后看 *grpc_connected_subchannel_create_call* 这个函数。
-
-{% highlight c %}
-grpc_subchannel_call *grpc_connected_subchannel_create_call(
-    grpc_exec_ctx *exec_ctx, grpc_connected_subchannel *con,
-    grpc_pollset *pollset) {
-  grpc_channel_stack *chanstk = CHANNEL_STACK_FROM_CONNECTION(con);
-  grpc_subchannel_call *call =
-      gpr_malloc(sizeof(grpc_subchannel_call) + chanstk->call_stack_size);
-  grpc_call_stack *callstk = SUBCHANNEL_CALL_TO_CALL_STACK(call);
-  // call->connection !
-  call->connection = con;
-  GRPC_CONNECTED_SUBCHANNEL_REF(con, "subchannel_call");
-  grpc_call_stack_init(exec_ctx, chanstk, 1, subchannel_call_destroy, call,
-                       NULL, NULL, callstk);
-  grpc_call_stack_set_pollset(exec_ctx, callstk, pollset);
-  return call;
-}
-{% endhighlight %}
-
-{:.center}
-src/core/client_config/subchannel.c
-
 上面的代码逻辑是，先从 holder 获得一个 call，如果没有 subchannel，尝试获得一个，如果有了，则创建一个 call，然后 goto retry。
 
 Retry 的逻辑是，获得一个 call 对象，调用 *grpc_subchannel_call_process_op* 方法处理。在函数中拿到一个 call element，调用 call element 的 filter 的 *start_transport_stream_op* 函数。
 
 ### Compress Filter
 
-在创建 Channel 的时候创建了各种 Filter，在创建 Call 的时候也同时映射了 Channel 的 Filter，所以 Channel 有多少 Filter，我们可以看 Call 的每个 filter 是如何执行。当然，这里只是挑重点的 Filter。
+前面简单的说了一下 *grpc_client_channel_filter*，其实 Channel 初始化的时候，第一个 elelement 的 filter 是 compress filter。
+
+可以看它的定义。
+
+{% highlight c %}
+const grpc_channel_filter grpc_compress_filter = {
+    compress_start_transport_stream_op, grpc_channel_next_op, sizeof(call_data),
+    init_call_elem, grpc_call_stack_ignore_set_pollset, destroy_call_elem,
+    sizeof(channel_data), init_channel_elem, destroy_channel_elem,
+    grpc_call_next_get_peer, "compress"};
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
+先看看 *init_channel_elem*，
+
+{% highlight c %}
+static void init_channel_elem(grpc_exec_ctx *exec_ctx,
+                              grpc_channel_element *elem,
+                              grpc_channel_element_args *args) {
+  channel_data *channeld = elem->channel_data;
+  grpc_compression_algorithm algo_idx;
+
+  grpc_compression_options_init(&channeld->compression_options);
+  channeld->compression_options.enabled_algorithms_bitset =
+      (uint32_t)grpc_channel_args_compression_algorithm_get_states(
+          args->channel_args);
+
+  channeld->default_compression_algorithm =
+      grpc_channel_args_get_compression_algorithm(args->channel_args);
+  /* Make sure the default isn't disabled. */
+  GPR_ASSERT(grpc_compression_options_is_algorithm_enabled(
+      &channeld->compression_options, channeld->default_compression_algorithm));
+  channeld->compression_options.default_compression_algorithm =
+      channeld->default_compression_algorithm;
+
+  channeld->supported_compression_algorithms = 0;
+  for (algo_idx = 0; algo_idx < GRPC_COMPRESS_ALGORITHMS_COUNT; ++algo_idx) {
+    /* skip disabled algorithms */
+    if (grpc_compression_options_is_algorithm_enabled(
+            &channeld->compression_options, algo_idx) == 0) {
+      continue;
+    }
+    channeld->supported_compression_algorithms |= 1u << algo_idx;
+  }
+
+  GPR_ASSERT(!args->is_last);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
+然后我们看看 *init_call_elem*。
+
+{% highlight c %}
+static void init_call_elem(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
+                           grpc_call_element_args *args) {
+  call_data *calld = elem->call_data;
+
+  gpr_slice_buffer_init(&calld->slices);
+  calld->has_compression_algorithm = 0;
+  // 绑定 callback
+  // got_slice(elem)
+  // send_done(elem)
+  grpc_closure_init(&calld->got_slice, got_slice, elem);
+  grpc_closure_init(&calld->send_done, send_done, elem);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/compress_filter.c
+
+然后我们知道最后执行 *execute_op* 的时候，会调用 *fiter* 的 *start_transport_stream_op* 方法。在这个 filter 中，这个方面就是 *compress_start_transport_stream_op*。
 
 {% highlight c %}
 static void compress_start_transport_stream_op(grpc_exec_ctx *exec_ctx,
@@ -964,7 +1018,7 @@ static void finish_send_message(grpc_exec_ctx *exec_ctx,
   calld->post_send = calld->send_op.on_complete;
   calld->send_op.on_complete = &calld->send_done;
 
-  // 再从栈中获取并继续执行
+  // 再从堆中获取并继续执行
   grpc_call_next_op(exec_ctx, elem, &calld->send_op);
 }
 {% endhighlight %}
@@ -1023,7 +1077,7 @@ src/core/channel/channel_stack.c
 
 由此可见，每次创建 Call 都会和 Channel 相关，Call 的调用则调用 Call Stack 上 Element 的 Filter 函数。最后每个 filter 各司其职，进行各自的操作。
 
-上面的代码中的 *grpc_client_channel_filter* 是在传输层做的事情，所以还需要深入了解 transport 的代码和 HTTP2，那么会在之后的文章记录。
+上面的代码，虽然调用了 send done，但现在还未知这些对象之间的结构，以及如何最后调用所以还需要深入了解 transport 的代码和 HTTP2，那么会在之后的文章记录。
 
 ### 相关文章
 

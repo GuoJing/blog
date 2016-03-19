@@ -305,14 +305,14 @@ void grpc_server_setup_transport(grpc_exec_ctx *exec_ctx, grpc_server *s,
   for (i = 0; i < s->channel_filter_count; i++) {
     filters[i] = s->channel_filters[i];
   }
-  
+
   // 继续增加附加的 filter
   // 从之前的代码来看是
   // grpc_http_server_filter
   for (; i < s->channel_filter_count + num_extra_filters; i++) {
     filters[i] = extra_filters[i - s->channel_filter_count];
   }
-  
+
   // 最后再增加一个 grpc_conncted_channel_filter
   filters[i] = &grpc_connected_channel_filter;
 
@@ -646,7 +646,7 @@ grpc_chttp2_stream_parsing *grpc_chttp2_parsing_accept_stream(
   // t->channel_callback.accept_stream
   // 其实这里就是
   // op->set_accept_stream_fn(op->accept_stream_user_data)
-  // 而 t->channel_callback.accept_stream_user_data = 
+  // 而 t->channel_callback.accept_stream_user_data =
   //       op->set_accept_stream_user_data;
   t->channel_callback.accept_stream(exec_ctx,
                                     t->channel_callback.accept_stream_user_data,
@@ -750,7 +750,7 @@ static grpc_call_error call_start_batch(grpc_exec_ctx *exec_ctx,
   }
 
   // do something
-  
+
   // excute_op 就是从 call 获得 call element
   // 循环调用 call stack 上的 filter 的 start_transport_stream_op
   execute_op(exec_ctx, call, &stream_op);
@@ -789,6 +789,196 @@ src/core/surface/call.c
 这时候我们最需要知道的就是 elem->filter 是什么。就需要知道 call 是什么。call 是来自 accept stream 的，那么就是通过 *grpc_call_create* 中第一个参数 *chand->channel* 来创建。其中有 *grpc_call_stack_init*，那么就知道这个 elem 的 channel 就是 *chand->channel*。
 
 那么看 *chand->channel* 是 *t->channel_callback.accept_stream_user_data* 。而这里的 *stream_user_data* 就是 *chand*，所以 channel 就是 *grpc_server_setup_transport* 函数创建的 channel。
+
+### HTTP Server Filter
+
+在 channel 初始化的时候，还有 *grpc_http_server_filter*。所以我们来看一下这个函数。
+
+{% highlight c %}
+static void init_call_elem(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
+                           grpc_call_element_args *args) {
+  call_data *calld = elem->call_data;
+  memset(calld, 0, sizeof(*calld));
+  // 绑定了 hs_on_recv 到 hs_on_recv
+  grpc_closure_init(&calld->hs_on_recv, hs_on_recv, elem);
+}
+
+static void init_channel_elem(grpc_exec_ctx *exec_ctx,
+                              grpc_channel_element *elem,
+                              grpc_channel_element_args *args) {
+  // 做了一下检查
+  GPR_ASSERT(!args->is_last);
+}
+{% endhighlight %}
+
+{:.center}
+channel/http_server_filter.c
+
+调用 *elem->start_transport_stream_op* 的时候，调用的是 *hs_start_transport_op*。
+
+{% highlight c %}
+static void hs_start_transport_op(grpc_exec_ctx *exec_ctx,
+                                  grpc_call_element *elem,
+                                  grpc_transport_stream_op *op) {
+  GRPC_CALL_LOG_OP(GPR_INFO, elem, op);
+  GPR_TIMER_BEGIN("hs_start_transport_op", 0);
+  hs_mutate_op(elem, op);
+  grpc_call_next_op(exec_ctx, elem, op);
+  GPR_TIMER_END("hs_start_transport_op", 0);
+}
+{% endhighlight %}
+
+{:.center}
+channel/http_server_filter.c
+
+其中又设置了 elem 的属性。
+
+{% highlight c %}
+static void hs_mutate_op(grpc_call_element *elem,
+                         grpc_transport_stream_op *op) {
+  call_data *calld = elem->call_data;
+
+  if (op->send_initial_metadata != NULL && !calld->sent_status) {
+    calld->sent_status = 1;
+    grpc_metadata_batch_add_head(op->send_initial_metadata, &calld->status,
+                                 GRPC_MDELEM_STATUS_200);
+    grpc_metadata_batch_add_tail(
+        op->send_initial_metadata, &calld->content_type,
+        GRPC_MDELEM_CONTENT_TYPE_APPLICATION_SLASH_GRPC);
+  }
+
+  if (op->recv_initial_metadata) {
+    // call_data->recv_initial_metadata 为 op->recv_initial_metadata
+    // call_data->on_done_recv 为 op->recv_initial_metadata_ready
+    calld->recv_initial_metadata = op->recv_initial_metadata;
+    calld->on_done_recv = op->recv_initial_metadata_ready;
+    op->recv_initial_metadata_ready = &calld->hs_on_recv;
+  }
+}
+{% endhighlight %}
+
+{:.center}
+channel/http_server_filter.c
+
+
+{% highlight c %}
+static void hs_on_recv(grpc_exec_ctx *exec_ctx, void *user_data, bool success) {
+  grpc_call_element *elem = user_data;
+  call_data *calld = elem->call_data;
+  if (success) {
+    server_filter_args a;
+    a.elem = elem;
+    a.exec_ctx = exec_ctx;
+    grpc_metadata_batch_filter(calld->recv_initial_metadata, server_filter, &a);
+    if (calld->seen_post && calld->seen_scheme && calld->seen_te_trailers &&
+        calld->seen_path && calld->seen_authority) {
+        // do nothing now
+    } else {
+      // on error ..
+      success = 0;
+      grpc_call_element_send_cancel(exec_ctx, elem);
+    }
+  }
+
+  // 最终调用了 on_done_recv 的 callback
+  // 就是 stream_op.recv_initial_metadata_ready
+  // 然后 receiving_initial_metadata_ready
+  calld->on_done_recv->cb(exec_ctx, calld->on_done_recv->cb_arg, success);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/http_server_filter.c
+
+### Connected Channel Filter
+
+再看看还有的 *grpc_connected_channel_filter*。
+
+{% highlight c %}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/connected_channel.c
+
+再看 *init_channel_elem*。
+
+{% highlight c %}
+static void init_channel_elem(grpc_exec_ctx *exec_ctx,
+                              grpc_channel_element *elem,
+                              grpc_channel_element_args *args) {
+  channel_data *cd = (channel_data *)elem->channel_data;
+  GPR_ASSERT(args->is_last);
+  GPR_ASSERT(elem->filter == &grpc_connected_channel_filter);
+  cd->transport = NULL;
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/connected_channel.c
+
+再看 *init_call_elem*。
+
+{% highlight c %}
+static void init_call_elem(grpc_exec_ctx *exec_ctx, grpc_call_element *elem,
+                           grpc_call_element_args *args) {
+  call_data *calld = elem->call_data;
+  channel_data *chand = elem->channel_data;
+  int r;
+
+  GPR_ASSERT(elem->filter == &grpc_connected_channel_filter);
+  r = grpc_transport_init_stream(
+      exec_ctx, chand->transport, TRANSPORT_STREAM_FROM_CALL_DATA(calld),
+      &args->call_stack->refcount, args->server_transport_data);
+  GPR_ASSERT(r == 0);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/connected_channel.c
+
+最后依旧走到 *con_start_transport_stream_op*。
+
+{% highlight c %}
+static void con_start_transport_stream_op(grpc_exec_ctx *exec_ctx,
+                                          grpc_call_element *elem,
+                                          grpc_transport_stream_op *op) {
+  call_data *calld = elem->call_data;
+  channel_data *chand = elem->channel_data;
+  GPR_ASSERT(elem->filter == &grpc_connected_channel_filter);
+  GRPC_CALL_LOG_OP(GPR_INFO, elem, op);
+
+  grpc_transport_perform_stream_op(exec_ctx, chand->transport,
+                                   TRANSPORT_STREAM_FROM_CALL_DATA(calld), op);
+}
+{% endhighlight %}
+
+{:.center}
+src/core/channel/connected_channel.c
+
+然后，就是 *perform_stream_op_locked* 啦。最终就走到了 *grpc_chttp2_complete_closure_step* 函数。将回调放入了 closure 列表中。
+
+{% highlight c %}
+void grpc_chttp2_complete_closure_step(grpc_exec_ctx *exec_ctx,
+                                       grpc_closure **pclosure, int success) {
+  grpc_closure *closure = *pclosure;
+  if (closure == NULL) {
+    return;
+  }
+  closure->final_data -= 2;
+  if (!success) {
+    closure->final_data |= 1;
+  }
+  if (closure->final_data < 2) {
+    grpc_exec_ctx_enqueue(exec_ctx, closure, closure->final_data == 0, NULL);
+  }
+  *pclosure = NULL;
+}
+{% endhighlight %}
+
+{:.center}
+src/core/transport/chttp2_transport.c
+
+Closure 对象将在后面提到。
 
 ### 相关文章
 

@@ -9,15 +9,15 @@ tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
 
 Server 端相关的代码看完之后，统一的对 Server 部分有了了解，包括 Server 和 CompletionQueue。由于实用主义，不继续从内核这一块继续深入 gRPC 代码了，先从 Client 这边来看，当有了整体的印象之后，再深入 gRPC
  C 核心代码。
- 
+
 ### Stub
- 
+
 gRPC 自动生成代码之后，会有 stub 代码，stub 可以简单的想象成方法和对象的一个封装，一个映射，其实本身并不做什么事情。也就是说，可以当成是序列化之后的代码级别的入口，并不是一个客户端。
 
 假设客户端调用一个服务端的方法，以下方法就是相当于：
 
     stub.Touch()
-    
+
 那么就相当于在网络上有个序列化之后的调用方法（不是这个格式，只是举例说明）。
 
     <Ticket method="Touch" id="xxxx">
@@ -258,7 +258,7 @@ class _Kernel(object):
       self, operation_id, group, method, initial_metadata, payload, termination,
       timeout, allowance, options):
       # invoke
-      
+
   def start(self):
     # 同样使用了 completion queue 并注册了线程调用执行 _spin 方法
     with self._lock:
@@ -770,6 +770,10 @@ grpc_call *grpc_call_create(grpc_channel *channel, grpc_call *parent_call,
   }
   call->send_deadline = send_deadline;
   // 初始化 call stack 很有意义
+  // call stack 的大小等于 channel stack 的大小
+  // 同时也会 初始化 call element
+  // 并且 call element [i] 的 filter
+  // 也等于 channel element [i] 的 filter
   grpc_call_stack_init(&exec_ctx, channel_stack, 1, destroy_call, call,
                        call->context, server_transport_data,
                        CALL_STACK_FROM_CALL(call));
@@ -845,6 +849,7 @@ def _invoke(
     response_deserializer = self._response_deserializers.get(
         (group, method), _IDENTITY)
     # 创建一个 call 对象
+    # 创建完成后 call stack, call element 都已经初始化了
     call = _intermediary_low.Call(
         self._channel, self._completion_queue, '/%s/%s' % (group, method),
         self._host, time.time() + timeout)
@@ -959,6 +964,7 @@ class Call(_types.Call):
             cygrpc.Metadata(
                 cygrpc.Metadatum(key, value)
                 for key, value in op.initial_metadata))
+      # 可知操作的类型是 SEND MESSAGE
       elif op.type == _types.OpType.SEND_MESSAGE:
         translated_op = cygrpc.operation_send_message(op.message)
       elif op.type == _types.OpType.SEND_CLOSE_FROM_CLIENT:
@@ -996,8 +1002,9 @@ grpc/_adapter/_low.py
 def operation_send_message(data):
   cdef Operation op = Operation()
   op.c_op.type = GRPC_OP_SEND_MESSAGE
+  # 把数据转换成 byte buffer
   byte_buffer = ByteBuffer(data)
-  # send message
+  # 设置 c_op data 的 send message 字段
   op.c_op.data.send_message = byte_buffer.c_byte_buffer
   op.references.append(byte_buffer)
   op.is_valid = True
@@ -1026,6 +1033,7 @@ cdef class Call:
     operation_tag.batch_operations = cy_operations
     cpython.Py_INCREF(operation_tag)
     # 调用 grpc_call_start_batch
+    # 这里的 c_ops 的 byte message 就已经设置好了
     return grpc_call_start_batch(
         self.c_call, cy_operations.c_ops, cy_operations.c_nops,
         <cpython.PyObject *>operation_tag, NULL)
@@ -1107,32 +1115,8 @@ static grpc_call_error call_start_batch(grpc_exec_ctx *exec_ctx,
     }
     switch (op->op) {
       case GRPC_OP_SEND_INITIAL_METADATA:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (call->sent_initial_metadata) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        if (op->data.send_initial_metadata.count > INT_MAX) {
-          error = GRPC_CALL_ERROR_INVALID_METADATA;
-          goto done_with_error;
-        }
-        bctl->send_initial_metadata = 1;
-        call->sent_initial_metadata = 1;
-        if (!prepare_application_metadata(
-                call, (int)op->data.send_initial_metadata.count,
-                op->data.send_initial_metadata.metadata, 0, call->is_client)) {
-          error = GRPC_CALL_ERROR_INVALID_METADATA;
-          goto done_with_error;
-        }
-        /* TODO(ctiller): just make these the same variable? */
-        call->metadata_batch[0][0].deadline = call->send_deadline;
-        stream_op.send_initial_metadata =
-            &call->metadata_batch[0 /* is_receiving */][0 /* is_trailing */];
-        break;
+        // 其他代码
+      // 主要关注的是这一块 SEND MESSAGE
       case GRPC_OP_SEND_MESSAGE:
         if (!are_write_flags_valid(op->flags)) {
           error = GRPC_CALL_ERROR_INVALID_FLAGS;
@@ -1148,209 +1132,46 @@ static grpc_call_error call_start_batch(grpc_exec_ctx *exec_ctx,
         }
         bctl->send_message = 1;
         call->sending_message = 1;
+        // op->data.send_message 就是 byte stream
         grpc_slice_buffer_stream_init(
             &call->sending_stream,
             &op->data.send_message->data.raw.slice_buffer, op->flags);
+        // stream op 的 send message 被赋值
+        // call->sending_stream.base
+        // base 是一个 grpc_byte_stream 对象
+        // 包含 length, flags 属性
+        // 包含 next 和 destory 方法指针
         stream_op.send_message = &call->sending_stream.base;
         break;
       case GRPC_OP_SEND_CLOSE_FROM_CLIENT:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (!call->is_client) {
-          error = GRPC_CALL_ERROR_NOT_ON_SERVER;
-          goto done_with_error;
-        }
-        if (call->sent_final_op) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        bctl->send_final_op = 1;
-        call->sent_final_op = 1;
-        stream_op.send_trailing_metadata =
-            &call->metadata_batch[0 /* is_receiving */][1 /* is_trailing */];
-        break;
-      case GRPC_OP_SEND_STATUS_FROM_SERVER:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (call->is_client) {
-          error = GRPC_CALL_ERROR_NOT_ON_CLIENT;
-          goto done_with_error;
-        }
-        if (call->sent_final_op) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        if (op->data.send_status_from_server.trailing_metadata_count >
-            INT_MAX) {
-          error = GRPC_CALL_ERROR_INVALID_METADATA;
-          goto done_with_error;
-        }
-        bctl->send_final_op = 1;
-        call->sent_final_op = 1;
-        call->send_extra_metadata_count = 1;
-        call->send_extra_metadata[0].md = grpc_channel_get_reffed_status_elem(
-            call->channel, op->data.send_status_from_server.status);
-        if (op->data.send_status_from_server.status_details != NULL) {
-          call->send_extra_metadata[1].md = grpc_mdelem_from_metadata_strings(
-              GRPC_MDSTR_GRPC_MESSAGE,
-              grpc_mdstr_from_string(
-                  op->data.send_status_from_server.status_details));
-          call->send_extra_metadata_count++;
-          set_status_details(
-              call, STATUS_FROM_API_OVERRIDE,
-              GRPC_MDSTR_REF(call->send_extra_metadata[1].md->value));
-        }
-        set_status_code(call, STATUS_FROM_API_OVERRIDE,
-                        (uint32_t)op->data.send_status_from_server.status);
-        if (!prepare_application_metadata(
-                call,
-                (int)op->data.send_status_from_server.trailing_metadata_count,
-                op->data.send_status_from_server.trailing_metadata, 1, 1)) {
-          error = GRPC_CALL_ERROR_INVALID_METADATA;
-          goto done_with_error;
-        }
-        stream_op.send_trailing_metadata =
-            &call->metadata_batch[0 /* is_receiving */][1 /* is_trailing */];
-        break;
-      case GRPC_OP_RECV_INITIAL_METADATA:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (call->received_initial_metadata) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        call->received_initial_metadata = 1;
-        call->buffered_metadata[0] = op->data.recv_initial_metadata;
-        grpc_closure_init(&call->receiving_initial_metadata_ready,
-                          receiving_initial_metadata_ready, bctl);
-        bctl->recv_initial_metadata = 1;
-        stream_op.recv_initial_metadata =
-            &call->metadata_batch[1 /* is_receiving */][0 /* is_trailing */];
-        stream_op.recv_initial_metadata_ready =
-            &call->receiving_initial_metadata_ready;
-        num_completion_callbacks_needed++;
-        break;
-      case GRPC_OP_RECV_MESSAGE:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (call->receiving_message) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        call->receiving_message = 1;
-        bctl->recv_message = 1;
-        call->receiving_buffer = op->data.recv_message;
-        stream_op.recv_message = &call->receiving_stream;
-        grpc_closure_init(&call->receiving_stream_ready, receiving_stream_ready,
-                          bctl);
-        stream_op.recv_message_ready = &call->receiving_stream_ready;
-        num_completion_callbacks_needed++;
-        break;
-      case GRPC_OP_RECV_STATUS_ON_CLIENT:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (!call->is_client) {
-          error = GRPC_CALL_ERROR_NOT_ON_SERVER;
-          goto done_with_error;
-        }
-        if (call->received_final_op) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        call->received_final_op = 1;
-        call->buffered_metadata[1] =
-            op->data.recv_status_on_client.trailing_metadata;
-        call->final_op.client.status = op->data.recv_status_on_client.status;
-        call->final_op.client.status_details =
-            op->data.recv_status_on_client.status_details;
-        call->final_op.client.status_details_capacity =
-            op->data.recv_status_on_client.status_details_capacity;
-        bctl->recv_final_op = 1;
-        stream_op.recv_trailing_metadata =
-            &call->metadata_batch[1 /* is_receiving */][1 /* is_trailing */];
-        break;
-      case GRPC_OP_RECV_CLOSE_ON_SERVER:
-        /* Flag validation: currently allow no flags */
-        if (op->flags != 0) {
-          error = GRPC_CALL_ERROR_INVALID_FLAGS;
-          goto done_with_error;
-        }
-        if (call->is_client) {
-          error = GRPC_CALL_ERROR_NOT_ON_CLIENT;
-          goto done_with_error;
-        }
-        if (call->received_final_op) {
-          error = GRPC_CALL_ERROR_TOO_MANY_OPERATIONS;
-          goto done_with_error;
-        }
-        call->received_final_op = 1;
-        call->final_op.server.cancelled =
-            op->data.recv_close_on_server.cancelled;
-        bctl->recv_final_op = 1;
-        stream_op.recv_trailing_metadata =
-            &call->metadata_batch[1 /* is_receiving */][1 /* is_trailing */];
-        break;
+        // 其他代码
     }
   }
 
   GRPC_CALL_INTERNAL_REF(call, "completion");
   if (!is_notify_tag_closure) {
+    // 增加 notify tag
+    // 并检查内存是否足够
+    // 否则分配内存
     grpc_cq_begin_op(call->cq, notify_tag);
   }
   gpr_ref_init(&bctl->steps_to_complete, num_completion_callbacks_needed);
 
   stream_op.context = call->context;
   grpc_closure_init(&bctl->finish_batch, finish_batch, bctl);
+  // stream_op 的 on_complete 方法注册
+  // grpc_batch_control 的 finish_batch 方法
   stream_op.on_complete = &bctl->finish_batch;
   gpr_mu_unlock(&call->mu);
 
+  // 执行操作
   execute_op(exec_ctx, call, &stream_op);
 
 done:
-  GPR_TIMER_END("grpc_call_start_batch", 0);
-  return error;
+  // ...
 
 done_with_error:
-  /* reverse any mutations that occured */
-  if (bctl->send_initial_metadata) {
-    call->sent_initial_metadata = 0;
-    grpc_metadata_batch_clear(&call->metadata_batch[0][0]);
-  }
-  if (bctl->send_message) {
-    call->sending_message = 0;
-    grpc_byte_stream_destroy(exec_ctx, &call->sending_stream.base);
-  }
-  if (bctl->send_final_op) {
-    call->sent_final_op = 0;
-    grpc_metadata_batch_clear(&call->metadata_batch[0][1]);
-  }
-  if (bctl->recv_initial_metadata) {
-    call->received_initial_metadata = 0;
-  }
-  if (bctl->recv_message) {
-    call->receiving_message = 0;
-  }
-  if (bctl->recv_final_op) {
-    call->received_final_op = 0;
-  }
-  gpr_mu_unlock(&call->mu);
-  goto done;
-}
+  // ...
 {% endhighlight %}
 
 {:.center}
