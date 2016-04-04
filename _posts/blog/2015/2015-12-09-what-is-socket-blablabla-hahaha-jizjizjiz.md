@@ -24,4 +24,14 @@ tags: moleskine
 
 好吧，Socket 大概明白了，但为什么要叫套接字呢，我中文不好，这tao、jie、zi三个中文到底怎么理解？为何这么翻译的呢？
 
+当然，最后看书才知道。
+
+> 有时，一个 IP 地址和一个端口号也称为一个 socket。
+
+这个术语出现在最早的 TCP 规范 [RFC793](https://www.ietf.org/rfc/rfc793.txt)中，后来它也作为表示伯克利版的编程接口。好吧。RFC 说的很明白了。
+
+> Concatenated with the network and host addresses from the internet communication layer, this forms a socket.
+
+大概也就这样了。
+
 A TCP connection is defined by two endpoints aka *[sockets](http://stackoverflow.com/questions/152457/what-is-the-difference-between-a-port-and-a-socket)*.
