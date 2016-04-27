@@ -521,10 +521,14 @@ img {
   margin-bottom: 40px;
 }
 
+.index_dragon {
+    width: 400px;
+    margin: 0 auto;
+}
+
 .index_dragon pre {
     background: white;
     line-height: 1.8em;
-    padding-left: 40px;
 }
 
 .index_center {
