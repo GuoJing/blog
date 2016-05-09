@@ -120,23 +120,56 @@ grpc/_links/service.py
 不过从上面的代码来看，Server 还是从 *_intermediary_low* 中读取，继续向下面挖。
 
 {% highlight python %}
+class Server(object):
+  def __init__(self, completion_queue):
+    # 初始化一个 _low.Server
+    self._internal = _low.Server(completion_queue._internal, [])
+    # 初始化一个 CompletionQueue
+    self._internal_cq = completion_queue._internal
+
+  def add_http2_addr(self, addr):
+    # 绑定 http2 port
+    return self._internal.add_http2_port(addr)
+
+  def add_secure_http2_addr(self, addr, server_credentials):
+    # 绑定一个加密的 port
+    if server_credentials is None:
+      return self._internal.add_http2_port(addr, None)
+    else:
+      return self._internal.add_http2_port(addr, server_credentials)
+
+  def start(self):
+    # 启动服务
+    return self._internal.start()
+{% endhighlight %}
+
+{:.center}
+grpc/_adapter/_intermediary_low.py
+
+上面的 Server 就是从底层的 *_low* 文件初始化一个 Server 对象。这里值得注意的一点是 *_internal* 一般都是指向 *_low* 这样更底层的位置。
+
+{% highlight python %}
 class Server(_types.Server):
 
   def __init__(self, completion_queue, args):
     args = cygrpc.ChannelArgs(
         cygrpc.ChannelArg(key, value) for key, value in args)
-    # 终于到 cython 中的 Server 了
+    # 使用 cython 的 Server 对象
     self.server = cygrpc.Server(args)
-    # 初始化的时候注册一个 completion queue
+    # 注册一个 completion queue
     self.server.register_completion_queue(completion_queue.completion_queue)
+    # 赋值本身
     self.server_queue = completion_queue
+
+  def add_http2_port(self, addr, creds=None):
+    if creds is None:
+      return self.server.add_http2_port(addr)
+    else:
+      return self.server.add_http2_port(addr, creds)
 
   def start(self):
     return self.server.start()
 {% endhighlight %}
-
-{:.center}
-grpc/_adapter/_intermediary_low.py
 
 我们终于看到曙光了，我们直接打开 *_cython/_cygrpc/server.pxi* 文件看如何跑起一个 server。
 
@@ -156,13 +189,29 @@ cdef class Server:
     if arguments is not None:
       c_arguments = &arguments.c_args
       self.references.append(arguments)
-    # 创建 server
-    self.c_server = grpc_server_create(c_arguments, NULL)
+    with nogil:
+      // 创建一个新的 grpc server
+      self.c_server = grpc_server_create(c_arguments, NULL)
     self.is_started = False
     self.is_shutting_down = False
     self.is_shutdown = False
-
 {% endhighlight %}
+
+{:.center}
+grpc/_cython/_cygrpc/server.pyx.pxi
+
+注意前面还调用了 *register_completion_queue*，我们不在这里详解，只是提出来。
+
+{% highlight python %}
+  def register_completion_queue(
+      self, CompletionQueue queue not None):
+    if self.is_started:
+      raise ValueError("cannot register completion queues after start")
+    with nogil:
+      grpc_server_register_completion_queue(
+          self.c_server, queue.c_completion_queue, NULL)
+    self.registered_completion_queues.append(queue)
+{% endhighlight%}
 
 {:.center}
 grpc/_cython/_cygrpc/server.pyx.pxi
@@ -180,61 +229,41 @@ grpc_server *grpc_server_create(const grpc_channel_args *args, void *reserved) {
   // 通过 filters 创建 server
   return grpc_server_create_from_filters(filters, num_filters, args);
 }
-{% endhighlight %}
 
-{:.center}
-src/core/surface/server_create.c
-
-挖到 *grpc_server_create_from_filters* 里去。
-
-{% highlight c %}
-grpc_server *grpc_server_create_from_filters(
-    const grpc_channel_filter **filters, size_t filter_count,
-    const grpc_channel_args *args) {
+grpc_server *grpc_server_create(const grpc_channel_args *args, void *reserved) {
   size_t i;
-  int census_enabled = grpc_channel_args_is_census_enabled(args);
-  // 初始化 grpc server 并且分配内存
+
+  GRPC_API_TRACE("grpc_server_create(%p, %p)", 2, (args, reserved));
+  // 初始化
   grpc_server *server = gpr_malloc(sizeof(grpc_server));
-
+  // 断言判断
   GPR_ASSERT(grpc_is_initialized() && "call grpc_init()");
-
+  // 内存初始化
   memset(server, 0, sizeof(grpc_server));
 
   gpr_mu_init(&server->mu_global);
   gpr_mu_init(&server->mu_call);
 
+  // 减少引用
   gpr_ref_init(&server->internal_refcount, 1);
+  // 修改 root channel data 链表
   server->root_channel_data.next = server->root_channel_data.prev =
       &server->root_channel_data;
 
-  // 设置一个 server 最大的 requested calls
+  // 最大请求的次数
   server->max_requested_calls = 32768;
-  // 初始化 request free list
+  // 创建 stack
   server->request_freelist =
       gpr_stack_lockfree_create(server->max_requested_calls);
   for (i = 0; i < (size_t)server->max_requested_calls; i++) {
     gpr_stack_lockfree_push(server->request_freelist, (int)i);
   }
+  // 初始化 request matcher
   request_matcher_init(&server->unregistered_request_matcher,
-                       server->max_requested_calls);
+                       server->max_requested_calls, server);
   server->requested_calls = gpr_malloc(server->max_requested_calls *
                                        sizeof(*server->requested_calls));
-
-  // 初始化 server channel filters
-  server->channel_filter_count = filter_count + 1u + (census_enabled ? 1u : 0u);
-  server->channel_filters =
-      gpr_malloc(server->channel_filter_count * sizeof(grpc_channel_filter *));
-  // 设置 channel filters 第一个 filter 为 server_surface_filter 
-  server->channel_filters[0] = &server_surface_filter;
-  if (census_enabled) {
-    server->channel_filters[1] = &grpc_server_census_filter;
-  }
-  // 初始化 filters
-  for (i = 0; i < filter_count; i++) {
-    server->channel_filters[i + 1u + (census_enabled ? 1u : 0u)] = filters[i];
-  }
-
-  // 设置 server channel args
+  // 复制 args
   server->channel_args = grpc_channel_args_copy(args);
 
   return server;
@@ -242,56 +271,31 @@ grpc_server *grpc_server_create_from_filters(
 {% endhighlight %}
 
 {:.center}
-core/surface/server.c
-
-上述代码直接可以概括为下图。
-
-{:.center}
-![gRPC Server Create Filter](/images/2016/grpc-server-create-filter.png){:style="max-width: 80%"}
-
-{:.center}
-gRPC Server Create
-
-其中 *server_surface_filter* 如下。
-
-{% highlight c %}
-// 看之后的 Channel and Call 可以了解 filter
-static const grpc_channel_filter server_surface_filter = {
-    server_start_transport_stream_op, grpc_channel_next_op, sizeof(call_data),
-    init_call_elem, grpc_call_stack_ignore_set_pollset, destroy_call_elem,
-    sizeof(channel_data), init_channel_elem, destroy_channel_elem,
-    grpc_call_next_get_peer, "server",
-};
-{% endhighlight %}
-
-{:.center}
-core/surface/server.c
+src/core/lib/surface/server.c
 
 了解了创建 Server 代码之后，看看如何跑起一个 Server。
 
 ### Server Start
 
-{% highlight python %}
+可以直接看 *_cython* 里的 Server 启动方法。
 
-cdef class Server:
+{% highlight python %}
   def start(self):
     if self.is_started:
       raise ValueError("the server has already started")
     self.backup_shutdown_queue = CompletionQueue()
-    # 注册一个 completion queue
-    # 一个 server 可以有多个 queue
     self.register_completion_queue(self.backup_shutdown_queue)
     self.is_started = True
-    # 终于，我们看到调用到 grpc c core 的代码了
-    grpc_server_start(self.c_server)
+    with nogil:
+      grpc_server_start(self.c_server)
     # Ensure the core has gotten a chance to do the start-up work
     self.backup_shutdown_queue.pluck(None, Timespec(None))
 {% endhighlight %}
 
 {:.center}
-grpc/_cython/_cygrpc/server.pxi
+src/python/grpcio/grpc/_cython/server.pyx.pxi
 
-现在可以打开 grpc 根路径里的 *src/core/surface/server.c* 看这个方法如何实现。
+现在可以打开 grpc 根路径里的 *src/core/lib/surface/server.c* 看这个方法如何实现。
 
 {% highlight c %}
 void grpc_server_start(grpc_server *server) {
@@ -301,15 +305,12 @@ void grpc_server_start(grpc_server *server) {
 
   GRPC_API_TRACE("grpc_server_start(server=%p)", 1, (server));
 
-  // 初始化 poolsets
   server->pollsets = gpr_malloc(sizeof(grpc_pollset *) * server->cq_count);
   for (i = 0; i < server->cq_count; i++) {
     server->pollsets[i] = grpc_cq_pollset(server->cqs[i]);
   }
 
-  // 给每个 listeners 进行初始化
-  // server->cq 就是 complete queue
-  // 每个 listener 都可以 start
+  // 把每个 listener 启动起来
   for (l = server->listeners; l; l = l->next) {
     l->start(&exec_ctx, server, l->arg, server->pollsets, server->cq_count);
   }
@@ -319,7 +320,7 @@ void grpc_server_start(grpc_server *server) {
 {% endhighlight %}
 
 {:.center}
-src/core/surface/server.c
+src/core/lib/surface/server.c
 
 虽然看上去我们的 server 跑起来了，但是 listener 是怎么跑起来的，这个又是什么东西？如果我们往回看，就会发现在跑 server 之前，注册了 http2 port，实际上就是 server.pyx.pxi 文件中的 *add_http2_port* 方法。
 
@@ -336,11 +337,11 @@ def add_http2_port(self, address,
     # 在这里注册了 listener
     if server_credentials is not None:
       self.references.append(server_credentials)
-      # 代码在 src/core/surface/server_secure_chttp2.c
+      # 注册一个加密的 http2 通道
       return grpc_server_add_secure_http2_port(
           self.c_server, address, server_credentials.c_credentials)
     else:
-      # 代码在 src/core/security/server_chttp2.c
+      # 注册一个非加密的通道
       return grpc_server_add_insecure_http2_port(self.c_server, address)
 {% endhighlight %}
 
@@ -358,46 +359,12 @@ int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
   int port_num = -1;
   int port_temp;
   grpc_exec_ctx exec_ctx = GRPC_EXEC_CTX_INIT;
-  // ....
-  grpc_resolved_addresses_destroy(resolved);
 
-  /* 注册 listener, 传进去的 start, destory 方法初始化到 tcp server 上 */
-  grpc_server_add_listener(&exec_ctx, server, tcp, start, destroy);
-  goto done;
+  GRPC_API_TRACE("grpc_server_add_insecure_http2_port(server=%p, addr=%s)", 2,
+                 (server, addr));
 
-done:
-  grpc_exec_ctx_finish(&exec_ctx);
-  return port_num;
-}
-
-{% endhighlight %}
-
-{:.center}
-src/core/surface/server_chttp2.c
-
-可以看到里面调用了 *grpc_server_add_listener*。至于什么时候 add port，当然是我们在 Python 代码一开始就绑定了端口，再 start 的了。这里的 listener 实际上是 tcp server。
-
-### Create TCP Server
-
-现在直接看 C Core 代码。注意，这个时候 Server 还没调用 Start，还是先要绑定地址和端口，还在做这一步的操作。注意，加密的和不加密的 tcp server 实现还是不一样的。
-
-{% highlight c %}
-// 这里只是看不加密的 server 的实现
-// 在这里 add listener
-int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
-  grpc_resolved_addresses *resolved = NULL;
-  // grpc tcp server 对象
-  grpc_tcp_server *tcp = NULL;
-  size_t i;
-  unsigned count = 0;
-  int port_num = -1;
-  int port_temp;
-  grpc_exec_ctx exec_ctx = GRPC_EXEC_CTX_INIT;
-
-  // 增加一个 grpc address 的绑定
   resolved = grpc_blocking_resolve_address(addr, "http");
   if (!resolved) {
-    // 如果搞不定就出错啦
     goto error;
   }
 
@@ -405,7 +372,7 @@ int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
   tcp = grpc_tcp_server_create(NULL);
   GPR_ASSERT(tcp);
 
-  // 循环绑定端口到 tcp server
+  // 遍历 address 绑定
   for (i = 0; i < resolved->naddrs; i++) {
     port_temp = grpc_tcp_server_add_port(
         tcp, (struct sockaddr *)&resolved->addrs[i].addr,
@@ -420,27 +387,24 @@ int grpc_server_add_insecure_http2_port(grpc_server *server, const char *addr) {
     }
   }
   
-  // 如果没有任何绑定就报错
+  // 异常判断
   if (count == 0) {
     gpr_log(GPR_ERROR, "No address added out of total %d resolved",
             resolved->naddrs);
     goto error;
   }
-  
-  // 检查绑定数量
   if (count != resolved->naddrs) {
     gpr_log(GPR_ERROR, "Only %d addresses added out of total %d resolved",
             count, resolved->naddrs);
   }
-  
   grpc_resolved_addresses_destroy(resolved);
 
-  // grpc server 增加一个 listener
-  // 这个 listener 是 tcp 对象
+  // 绑定成功后才会给 server 加上 listeners 列表
+  // 并传入 start, destory 方法
   grpc_server_add_listener(&exec_ctx, server, tcp, start, destroy);
   goto done;
 
-// 错误处理
+/* Error path: cleanup and return */
 error:
   if (resolved) {
     grpc_resolved_addresses_destroy(resolved);
@@ -457,8 +421,11 @@ done:
 {% endhighlight %}
 
 {:.center}
-src/core/surface/server_chttp2.c
+src/core/ext/transport/chttp2/server/insecure/server_chttp2.c
 
+可以看到里面调用了 *grpc_server_add_listener*。至于什么时候 add port，当然是我们在 Python 代码一开始就绑定了端口，再 start 的了。这里的 listener 实际上是 tcp server。
+
+### Create TCP Server
 上面的代码不仅创建了一个 TCP Server，还给 server 添加了各种 listener。每个 listener 都是 tcp server 的实例。*grpc_tcp_server_create* 是一个重要的函数。可以进去看看这个函数在做什么。
 
 {% highlight c %}
@@ -491,7 +458,7 @@ grpc_tcp_server *grpc_tcp_server_create(grpc_closure *shutdown_complete) {
 {% endhighlight %}
 
 {:.center}
-src/core/iomgr/tcp_server_posix.c
+src/core/lib/iomgr/tcp_server_posix.c
 
 从上面来看就初始化了一个 tcp server。
 
@@ -523,7 +490,7 @@ struct grpc_tcp_listener {
 {% endhighlight %}
 
 {:.center}
-src/core/iomgr/tcp_server_posix.c
+src/core/lib/iomgr/tcp_server_posix.c
 
 创建 TCP Server 绑定了 listener，绑定 listener 的代码非常简单。
 
@@ -538,6 +505,8 @@ void grpc_server_add_listener(
   listener *l = gpr_malloc(sizeof(listener));
   // l->arg 就是前面的 tcp
   l->arg = arg;
+  // 注册在前面定义好的 start 和 destory 方法
+  // server_chttp2.c
   l->start = start;
   l->destroy = destroy;
   // 增加到 listener 链表中
@@ -547,7 +516,7 @@ void grpc_server_add_listener(
 {% endhighlight %}
 
 {:.center}
-src/core/server.c
+src/core/lib/surface/server.c
 
 绑定 listner 之后，server 启动时，就会调用每个 listener 的 start 方法。
 
@@ -557,15 +526,6 @@ src/core/server.c
 
 {% highlight c %}
 void grpc_server_start(grpc_server *server) {
-  listener *l;
-  size_t i;
-  grpc_exec_ctx exec_ctx = GRPC_EXEC_CTX_INIT;
-
-  server->pollsets = gpr_malloc(sizeof(grpc_pollset *) * server->cq_count);
-  for (i = 0; i < server->cq_count; i++) {
-    server->pollsets[i] = grpc_cq_pollset(server->cqs[i]);
-  }
-  
   // 每个 listener 都调用 start 函数
   for (l = server->listeners; l; l = l->next) {
     l->start(&exec_ctx, server, l->arg, server->pollsets, server->cq_count);
@@ -576,7 +536,7 @@ void grpc_server_start(grpc_server *server) {
 {% endhighlight %}
 
 {:.center}
-src/core/surface/server.c
+src/core/lib/surface/server.c
 
 可以看到，server start 方法就是让 server 下的每个 tcp listener 都调用 start 方法。
 
@@ -592,9 +552,49 @@ static void start(grpc_exec_ctx *exec_ctx, grpc_server *server, void *tcpp,
 {% endhighlight %}
 
 {:.center}
-src/core/surface/server_chttp2.c
+src/core/ext/transport/chttp2/server/insecure/server_chttp2.c
 
-深入下去的话，可以在 C 相关的调用代码来研究 [gRPC C Core - Server](/posts/grpc-c-core-source-code-1/)。
+继续往下面看。
+
+{% highlight c %}
+void grpc_tcp_server_start(grpc_exec_ctx *exec_ctx, grpc_tcp_server *s,
+                           grpc_pollset **pollsets, size_t pollset_count,
+                           grpc_tcp_server_cb on_accept_cb,
+                           void *on_accept_cb_arg) {
+  size_t i;
+  grpc_tcp_listener *sp;
+  GPR_ASSERT(on_accept_cb);
+  gpr_mu_lock(&s->mu);
+  GPR_ASSERT(!s->on_accept_cb);
+  GPR_ASSERT(s->active_ports == 0);
+  // s 是 tcp 对象
+  // on_accept_cb 是 new_transport
+  // 在 sever_chttp2.c 文件中定义
+  // *on_accept_cb_arg 是 grpc server
+  // server on accept callback = on_accept_cb 方法
+  s->on_accept_cb = on_accept_cb;
+  // 同样注册一些方法
+  s->on_accept_cb_arg = on_accept_cb_arg;
+  s->pollsets = pollsets;
+  s->pollset_count = pollset_count;
+  for (sp = s->head; sp; sp = sp->next) {
+    for (i = 0; i < pollset_count; i++) {
+      // 恩，pollset 文件描述符
+      grpc_pollset_add_fd(exec_ctx, pollsets[i], sp->emfd);
+    }
+    sp->read_closure.cb = on_read;
+    sp->read_closure.cb_arg = sp;
+    grpc_fd_notify_on_read(exec_ctx, sp->emfd, &sp->read_closure);
+    s->active_ports++;
+  }
+  gpr_mu_unlock(&s->mu);
+}
+{% endhighlight %}
+
+{:.center}
+core/lib/iomgr/tcp_server_posix.c
+
+到这里一个 Server 的流程就清楚了。
 
 ### 线程池
 
@@ -615,6 +615,8 @@ sample.py
 就可以看到服务器上请求多的时候，开启了线程池，不过鉴于 Python 有 GIL，性能提升暂时未测试。但可以看到，暂时我们的 Server 这一端就跑起来了。
 
 线程池在代码里有很大的用，在之后的代码解析中会更深入的挖掘。
+
+此部分代码的版本号为 **3a4b903bf0554051d4a6523d3d252773c1c80495** 。
 
 [^1]: 但是没有文档，只能从代码里看，找到灵感的是 logging_pool。
 
