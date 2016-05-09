@@ -6,6 +6,7 @@ description: gRPC Python 源码
 tags: gRPC Python Google Source Coding HTTP2
 ---
 ### Overview
+此部分代码的基于 git log **3a4b903bf0554051d4a6523d3d252773c1c80495** 分析。
 
 在启动一个服务的时候，gRPC 进行了多层调用才最终启动服务，Python 只是一个语言的 wrapper，自己并不负责真正的 gRPC 的服务启动。在这里可以了解一个服务是如何起起来的。
 
@@ -615,8 +616,6 @@ sample.py
 就可以看到服务器上请求多的时候，开启了线程池，不过鉴于 Python 有 GIL，性能提升暂时未测试。但可以看到，暂时我们的 Server 这一端就跑起来了。
 
 线程池在代码里有很大的用，在之后的代码解析中会更深入的挖掘。
-
-此部分代码的版本号为 **3a4b903bf0554051d4a6523d3d252773c1c80495** 。
 
 [^1]: 但是没有文档，只能从代码里看，找到灵感的是 logging_pool。
 
