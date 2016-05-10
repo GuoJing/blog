@@ -7,6 +7,8 @@ tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
 ---
 ### Overview
 
+此部分代码的基于 git log **3a4b903bf0554051d4a6523d3d252773c1c80495** 分析。
+
 在了解 Server 是如何启动的之后，可以看看在 Server 启动后最重要的另一个主要负责任务的代码，这一部分代码就是 CompletionQueue。相对而言，CompletionQueue 会相对简单一点。
 
 ### CompletionQueue
@@ -14,27 +16,48 @@ tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
 CompletionQueue 对创建服务方外面来说是透明的，所以我们在实例化一个 server 对象的时候，并不需要手动的指定 CompletionQueue，我们可以在代码中找到。
 
 {% highlight python %}
-class _Server(interfaces.Server):
+class Server(_types.Server):
 
-  def _start(self):
-    with self._lock:
-      servicer = _GRPCServicer(
-          _crust_implementations.servicer(
-              self._implementations, self._multi_implementation, assembly_pool))
+  def __init__(self, completion_queue, args):
+    args = cygrpc.ChannelArgs(
+        cygrpc.ChannelArg(key, value) for key, value in args)
+    # 使用 cython 的 Server 对象
+    self.server = cygrpc.Server(args)
+    # 注册一个 completion queue
+    self.server.register_completion_queue(completion_queue.completion_queue)
+    # 赋值本身
+    self.server_queue = completion_queue
 
-      self._end_link = _core_implementations.service_end_link(
-          servicer, self._default_timeout, self._maximum_timeout)
+  def add_http2_port(self, addr, creds=None):
+    if creds is None:
+      return self.server.add_http2_port(addr)
+    else:
+      return self.server.add_http2_port(addr, creds)
 
-      self._grpc_link.join_link(self._end_link)
-      self._end_link.join_link(self._grpc_link)
-      self._grpc_link.start()
-      self._end_link.start()
+  def start(self):
+    return self.server.start()
 {% endhighlight %}
 
 {:.center}
-grpc/beta/_service.py
+grpc/_adapter/_low.py
 
-还是找到 *_Server* 中真正 *_start* 的方法，进入到 *_link* 中去。
+到这里，我们可以看到内部创建了一个 CompletionQueue，可以找到 *_cython* 中 *server* 的代码中的注册代码。
+
+{% highlight python %}
+def register_completion_queue(
+    self, CompletionQueue queue not None):
+    if self.is_started:
+        raise ValueError("cannot register completion queues after start")
+    with nogil:
+        grpc_server_register_completion_queue(
+            self.c_server, queue.c_completion_queue, NULL)
+    self.registered_completion_queues.append(queue)
+{% endhighlight %}
+
+{:.center}
+grpc/_cython/_cygrpc/server.pyx.pxi
+
+在继续深入下去之前，看看是如何创建一个 Queue 对象的。
 
 {% highlight python %}
 def service_link(request_deserializers, response_serializers):
@@ -59,10 +82,7 @@ class _Kernel(object):
         self._server = _intermediary_low.Server(self._completion_queue)
       # logging_pool 就是线程的创建对象
       self._pool = logging_pool.pool(1)
-      # 这里是一行非常重要的代码
-      # 注册了 completion_queue 和 server 的线程逻辑
-      # 当 complete queue 获得 event 之后
-      # 会回来调用 self._spin 函数
+      # 该方法启动线程读取 completion queue 的内容
       self._pool.submit(self._spin, self._completion_queue, self._server)
       # 仅仅开始服务
       # 队列从前面的 logging pool 创建的线程中执行
@@ -74,7 +94,23 @@ class _Kernel(object):
 {:.center}
 grpc/_links/service.py
 
-到这里，我们可以看到内部创建了一个 CompletionQueue，不看 Server 如何实现，直接进入到 Queue 去研究。
+简单看一下上面的 *_spin* 方法。
+
+{% highlight python %}
+def _spin(self, completion_queue, server):
+    while True:
+        # 循环从 completion queue 调用 get 方法
+        event = completion_queue.get(None)
+        with self._lock:
+            if event.kind is _STOP:
+                self._due.remove(_STOP)
+            # ...
+{% endhighlight %}
+
+{:.center}
+grpc/_links/service.py
+
+可以看见，在创建 *_intermediary_low.Server* 的时候就传进去了一个 *queue*，这个 *queue* 则来自 *_intermediary_low.CompletionQueue*。
 
 {% highlight python %}
 class CompletionQueue(object):
@@ -89,6 +125,9 @@ class CompletionQueue(object):
     # self._internal.next
     # 这里调用了 _internal 的 next
     # 是比较重要的
+    # 可以考虑为 complete_queue.get == _low.complete_queue.next
+    # ev = self._internal.next(deadline)
+    # 部分代码省略
     return result_ev
 
   def stop(self):
@@ -108,6 +147,7 @@ class CompletionQueue(_types.CompletionQueue):
 
   def next(self, deadline=float('+inf')):
     # 这里从 queue 的 poll 中获得一个 event，就是这里了
+    # 进行一些处理和包装，返回一个 gRPC Python 的 Event 对象
     raw_event = self.completion_queue.poll(cygrpc.Timespec(deadline))
 {% endhighlight %}
 
@@ -121,7 +161,8 @@ cdef class CompletionQueue:
 
   def __cinit__(self):
     # 创建一个 completion_queue
-    self.c_completion_queue = grpc_completion_queue_create(NULL)
+    with nogil:
+        self.c_completion_queue = grpc_completion_queue_create(NULL)
     self.is_shutting_down = False
     self.is_shutdown = False
     self.pluck_condition = threading.Condition()
@@ -203,7 +244,7 @@ struct grpc_completion_queue {
 {% endhighlight %}
 
 {:.center}
-src/core/surface/completion_queue.c
+src/core/lib/surface/completion_queue.c
 
 其中还有 *grpc_cq_completion*，是队列中的每一个元素。
 
@@ -222,7 +263,7 @@ typedef struct grpc_cq_completion {
 {% endhighlight %}
 
 {:.center}
-src/core/surface/completion_queue.h
+src/core/lib/surface/completion_queue.h
 
 注意，每一个 *grpc_cq_completion* 都包含一个函数指针，done，还有一个 done_arg 指针。所以每个 *grpc_cq_completion* 都可以调用自己的 done 方法。
 
@@ -273,7 +314,7 @@ grpc_completion_queue *grpc_completion_queue_create(void *reserved) {
 {% endhighlight %}
 
 {:.center}
-src/core/surface/completion_queue.c
+src/core/lib/surface/completion_queue.c
 
 CompletionQueue 中还有一些重要的方法，一个一个来看。
 
@@ -327,7 +368,7 @@ grpc_event grpc_completion_queue_next(grpc_completion_queue *cc,
 {% endhighlight %}
 
 {:.center}
-src/core/surface/completion_queue.c
+src/core/lib/surface/completion_queue.c
 
 所以可以看出，CompletionQueue 是在一直等待并获取一个元素。关键问题来了，一直获取元素，如何返回给 grpcio 处理呢？其实很简单。
 
