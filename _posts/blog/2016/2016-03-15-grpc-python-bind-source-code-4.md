@@ -7,6 +7,8 @@ tags: gRPC Python Google Source Coding HTTP2 CompletionQueue
 ---
 ### Overview
 
+此部分代码的基于 git log **3a4b903bf0554051d4a6523d3d252773c1c80495** 分析。
+
 Server 端相关的代码看完之后，统一的对 Server 部分有了了解，包括 Server 和 CompletionQueue。由于实用主义，不继续从内核这一块继续深入 gRPC 代码了，先从 Client 这边来看，当有了整体的印象之后，再深入 gRPC
  C 核心代码。
 
@@ -82,7 +84,9 @@ def _assemble(
 {:.center}
 grpc/beta/_stub.py
 
-这个时候可以继续进入 *_AutoIntermediary* 类，发现这个类并没有做什么。但是其中的 *_up* 和 *_done* 是很有用的，这里的 *_up* 和 *_down* 分别是 *stub_assembly_manager.up* 和 *stub_assembly_manager.down*，其中的 *delegate* 参数是 stub。
+这个时候可以继续进入 *_AutoIntermediary* 类，发现这个类并没有做什么，只是做了一层包装。
+
+这个时候回头来看 *_StubAssemblyManager*。
 
 {% highlight python %}
 class _StubAssemblyManager(object):
@@ -149,17 +153,16 @@ def serviceless_end_link():
   return _End(None)
 
 class _End(End):
+    def start(self):
+        with self._lock:
+            if self._cycle is not None:
+                raise ValueError('Tried to start a not-stopped End!')
+        else:
+            # 初始化一个 cycle，传入一个线程 pool
+            self._cycle = _Cycle(logging_pool.pool(1))
 
-def start(self):
-    with self._lock:
-      if self._cycle is not None:
-        raise ValueError('Tried to start a not-stopped End!')
-      else:
-        # 初始化一个 cycle，传入一个线程 pool
-        self._cycle = _Cycle(logging_pool.pool(1))
-
-  def stop(self, grace):
-    # 结束 link
+    def stop(self, grace):
+        # 结束 link
 {% endhighlight %}
 
 {:.center}
@@ -371,6 +374,8 @@ def blocking_unary_unary(
   rendezvous, unused_operation_context, unused_outcome = _invoke(
       end, group, method, timeout, protocol_options, initial_metadata, payload,
       True)
+  # 如果 with_call
+  # 则服务端可以返回数据和 metadata
   if with_call:
     return next(rendezvous), rendezvous
   else:
@@ -498,6 +503,11 @@ def invocation_operate(
     transmission_manager.kick_off(
         group, method, timeout, protocol_options, initial_metadata, payload,
         completion, None)
+
+    return _EasyOperation(
+      lock, termination_manager, transmission_manager, expiration_manager,
+      operation_context, emission_manager, reception_manager)
+
 {% endhighlight %}
 
 {:.center}
@@ -681,6 +691,8 @@ grpc/_adapter/_intermediary_low.py
     if parent is not None:
       parent_call = parent.c_call
     # 真正调用 grpc c core 的地方
+    # 注意传进去了 self.c_channel
+    # self.c_channel 的 filters 会被复制给  c_call
     operation_call.c_call = grpc_channel_create_call(
         self.c_channel, parent_call, flags,
         queue.c_completion_queue, method, host_c_string, deadline.c_time,
@@ -713,7 +725,7 @@ grpc_call *grpc_channel_create_call(grpc_channel *channel,
 {% endhighlight %}
 
 {:.center}
-src/core/surface/channel.c
+src/core/lib/surface/channel.c
 
 gRPC 代码可真够深的。
 
@@ -740,7 +752,7 @@ static grpc_call *grpc_channel_create_call_internal(
 {% endhighlight %}
 
 {:.center}
-src/core/surface/channel.c
+src/core/lib/surface/channel.c
 
 *grpc_call_create* 函数来自 Call 代码。
 
@@ -762,6 +774,7 @@ grpc_call *grpc_call_create(grpc_channel *channel, grpc_call *parent_call,
   gpr_mu_init(&call->mu);
   call->channel = channel;
   // completion queue 队列也在这里使用
+  // 绑定这个 call 的 cq 属性
   call->cq = cq;
   call->parent = parent_call;
   call->is_client = server_transport_data == NULL;
@@ -796,9 +809,9 @@ grpc_call *grpc_call_create(grpc_channel *channel, grpc_call *parent_call,
 {% endhighlight %}
 
 {:.center}
-src/core/surface/call.c
+src/core/lib/surface/call.c
 
-可以看见一个 Call 注册了一个 CompletionQueue，并把自己的 cq (CompletionQueue) 成员设置为 CompletionQueue。在今后的执行就能知道是从哪个 CompletionQueue 来，回到哪个 CompletionQueue。其中 *grpc_call_stack_set_pollset* 相当于执行了将 call data 写入到 pollset。
+可以看见一个 Call 注册了一个 CompletionQueue，并把自己的 cq (CompletionQueue) 成员设置为 CompletionQueue。
 
 {% highlight c %}
 void grpc_call_stack_set_pollset(grpc_exec_ctx *exec_ctx,
@@ -826,7 +839,7 @@ void grpc_call_stack_set_pollset(grpc_exec_ctx *exec_ctx,
 {% endhighlight %}
 
 {:.center}
-src/core/channel/channel_stack.c
+src/core/lib/channel/channel_stack.c
 
 ### Call method
 
@@ -1033,10 +1046,12 @@ cdef class Call:
     operation_tag.batch_operations = cy_operations
     cpython.Py_INCREF(operation_tag)
     # 调用 grpc_call_start_batch
+    with nogil:
     # 这里的 c_ops 的 byte message 就已经设置好了
-    return grpc_call_start_batch(
+      result = grpc_call_start_batch(
         self.c_call, cy_operations.c_ops, cy_operations.c_nops,
         <cpython.PyObject *>operation_tag, NULL)
+    return result
 {% endhighlight %}
 
 {:.center}
@@ -1065,6 +1080,9 @@ grpc_call_error grpc_call_start_batch(grpc_call *call, const grpc_op *ops,
   return err;
 }
 {% endhighlight %}
+
+{:.center}
+core/lib/surface/call.c
 
 调用了 *call_start_batch*，代码如下。
 
@@ -1115,7 +1133,7 @@ static grpc_call_error call_start_batch(grpc_exec_ctx *exec_ctx,
     }
     switch (op->op) {
       case GRPC_OP_SEND_INITIAL_METADATA:
-        // 其他代码
+      // 其他代码
       // 主要关注的是这一块 SEND MESSAGE
       case GRPC_OP_SEND_MESSAGE:
         if (!are_write_flags_valid(op->flags)) {
@@ -1175,7 +1193,7 @@ done_with_error:
 {% endhighlight %}
 
 {:.center}
-src/core/sureface/call.c
+src/core/lib/sureface/call.c
 
 中间就是巨大的 switch，最后都会走到 execute_op。
 
@@ -1192,7 +1210,7 @@ static void execute_op(grpc_exec_ctx *exec_ctx, grpc_call *call,
 }
 {% endhighlight %}
 {:.center}
-src/core/sureface/call.c
+src/core/lib/sureface/call.c
 
 最后，到达了 *start_transport_stream_op*。这个函数和具体的 element 的 filter 有关。这里是 *compress_filter*，所以。代码是。
 
@@ -1224,7 +1242,7 @@ static void compress_start_transport_stream_op(grpc_exec_ctx *exec_ctx,
 {% endhighlight %}
 
 {:.center}
-src/core/channel/compress_filter.c
+src/core/lib/channel/compress_filter.c
 
 继续读。
 
@@ -1245,7 +1263,7 @@ static void continue_send_message(grpc_exec_ctx *exec_ctx,
 {% endhighlight %}
 
 {:.center}
-src/core/channel/compress_filter.c
+src/core/lib/channel/compress_filter.c
 
 结束处理。
 
@@ -1275,7 +1293,7 @@ static void finish_send_message(grpc_exec_ctx *exec_ctx,
 {% endhighlight %}
 
 {:.center}
-src/core/channel/compress_filter.c
+src/core/lib/channel/compress_filter.c
 
 {% highlight c %}
 static void send_done(grpc_exec_ctx *exec_ctx, void *elemp, bool success) {
@@ -1287,7 +1305,7 @@ static void send_done(grpc_exec_ctx *exec_ctx, void *elemp, bool success) {
 {% endhighlight %}
 
 {:.center}
-src/core/channel/compress_filter.c
+src/core/lib/channel/compress_filter.c
 
 暂时，可以当做在这里进行了传输，接下来具体分析是如何实现传输的，但在这之前，还需要了解 Channel Stack 和 Call Stack。以及 Channel 的创建流程。
 
