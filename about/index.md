@@ -3,4 +3,4 @@ layout:     page
 title:      关于
 description: 关于我
 ---
-guojing.me@icloud.com
+guojing.me@qiajigou.click
