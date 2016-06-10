@@ -127,7 +127,7 @@ a {
 }
 
 .title {
-  font-size: 3rem;
+  font-size: 2rem;
   margin-left: -5px;
   margin-bottom: 30px;
   color: #747f8c;
@@ -241,6 +241,7 @@ a:link {
 .archive,.content, .index_posts li {
   list-style: none;
   padding: 0;
+  font-size: 16px;
 }
 
 .archive {
