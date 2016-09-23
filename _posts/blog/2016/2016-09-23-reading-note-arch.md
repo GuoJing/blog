@@ -1,8 +1,8 @@
 ---
 layout:    post
-title:     笔记记录
+title:     笔记
 category:  blog
-description: 有关 2016 上半年总结
+description: 建筑师笔记记录
 tags: 记录 生活
 ---
 ### 优秀的设计师应该反应迅速，行动果断
