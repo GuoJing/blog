@@ -67,7 +67,7 @@ Life on four string
 {:.center}
 More Ukulele
 
-[^1]: Jake Shimabukuro 官方网站 [http://jakeshimabukuro.com](http://jakeshimabukuro.com)
+[^1]: Jake Shimabukuro 官方网站 [http://jakeshimabukuro.com](http://jakeshimabukuro.com)。
 
 [^2]: 我自己学的曲子，虽然不太熟练，但很开心。[Youku](http://i.youku.com/u/UMTUxMTc5MjE2)，[Youtube](https://www.youtube.com/channel/UCYHSKDgPO6CBpDn4IvhB7rA)。
 

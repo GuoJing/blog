@@ -1,51 +1,15 @@
 @font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-black.eot');
-  src: url('/style/fonts/lato/lato-black.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-black.woff') format('woff'), url('/style/fonts/lato/lato-black.ttf') format('truetype'), url('/style/fonts/lato/lato-black.svg#latoblack') format('svg');
-  font-weight: 900;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-bold.eot');
-  src: url('/style/fonts/lato/lato-bold.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-bold.woff') format('woff'), url('/style/fonts/lato/lato-bold.ttf') format('truetype'), url('/style/fonts/lato/lato-bold.svg#latobold') format('svg');
+  font-family: 'Avenir Next';
+  src: url("/style/fonts/AvenirNextLTPro-Cn.otf");
   font-weight: bold;
   font-style: normal;
-}
-@font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-bolditalic.eot');
-  src: url('/style/fonts/lato/lato-bolditalic.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-bolditalic.woff') format('woff'), url('/style/fonts/lato/lato-bolditalic.ttf') format('truetype'), url('/style/fonts/lato/lato-bolditalic.svg#latobold-italic') format('svg');
-  font-weight: bold;
-  font-style: italic;
-}
-@font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-italic.eot');
-  src: url('/style/fonts/lato/lato-italic.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-italic.woff') format('woff'), url('/style/fonts/lato/lato-italic.ttf') format('truetype'), url('/style/fonts/lato/lato-italic.svg#latoitalic') format('svg');
-  font-weight: normal;
-  font-style: italic;
-}
-@font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-light.eot');
-  src: url('/style/fonts/lato/lato-light.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-light.woff') format('woff'), url('/style/fonts/lato/lato-light.ttf') format('truetype'), url('/style/fonts/lato/lato-light.svg#latolight') format('svg');
-  font-weight: 300;
-  font-style: normal;
-}
-@font-face {
-  font-family: 'Lato';
-  src: url('/style/fonts/lato/lato-regular.eot');
-  src: url('/style/fonts/lato/lato-regular.eot?#iefix') format('embedded-opentype'), url('/style/fonts/lato/lato-regular.woff') format('woff'), url('/style/fonts/lato/lato-regular.ttf') format('truetype'), url('/style/fonts/lato/lato-regular.svg#latoregular') format('svg');
-  font-weight: normal;
-  font-style: normal;
-}
+  }
 
 body {
   font-size: 15px;
   color: #525d67;
-  background: #FFF;
-  font-family: "Lato","Open Sans",Arial,"Hiragino Sans GB","Microsoft YaHei","微软雅黑","STHeiti","WenQuanYi Micro Hei",SimSun,sans-serif;
+  background: #fbfbfb;
+  font-family: 'Avenir Next', "Open Sans",Arial,"Hiragino Sans GB","Microsoft YaHei","微软雅黑","STHeiti","WenQuanYi Micro Hei",SimSun, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-transform: translate3d(0,0,0);
   margin: 0;
@@ -92,7 +56,7 @@ hr {
 
 .container {
   max-width: 900px;
-  background: #FFF;
+  background: #fbfbfb;
   overflow: hidden;
   padding: 20px;
   border-radius: 0px 0px 10px 10px;
@@ -104,7 +68,7 @@ hr {
 }
 
 .banner {
-  background: white;
+  background: #fbfbfb;
   border-bottom: 1px solid #ECF0F1;
   padding: 2px 0 2px 0;
   font-family: "Lato", Helvetica, Arial, sans-serif;
@@ -119,7 +83,7 @@ hr {
 
 .banner a:hover {
   text-decoration: none;
-  background: #FFF;
+  background: #fbfbfb;
 }
 
 a {
@@ -183,20 +147,20 @@ blockquote p {
 }
 
 .date {
-  color: #FFF;
+  color: #fbfbfb;
   font-weight: bolder;
   text-transform: uppercase;
 }
 
 .date a:link {
-  color: #FFF;
+  color: #fbfbfb;
   text-decoration: none;
   margin: 0 2px;
   padding: 3px;
 }
 
 .date a:visited {
-  color: #FFF;
+  color: #fbfbfb;
   text-decoration: none;
 }
 
@@ -283,8 +247,8 @@ code {
   -moz-border-radius: 4px;
   -webkit-border-radius: 4px;
   border-radius: 4px;
-  box-shadow: inset 1px 1px #FFF;
-  background: #FFF;
+  box-shadow: inset 1px 1px #fbfbfb;
+  background: #fbfbfb;
   color: #6b747f;
   margin: 0 5px 0 5px;
 }
@@ -336,8 +300,7 @@ img {
 }
 
 .nav-pills > li > a:hover {
-  /*color: white;*/
-  background-color: white;
+  background-color: #fbfbfb;
 }
 
 .nav-pills>li+li {
@@ -389,7 +352,7 @@ img {
 }
 
 .content a:hover {
-  color: #1ABC9C;
+  color: #db4d52;
 }
 
 .content .collect_info {
@@ -468,7 +431,7 @@ img {
   border-radius: 4px;
   margin: 10px auto;
   padding: 5px;
-  text-shadow: 0 1px 0 white;
+  text-shadow: 0 1px 0 #fbfbfb;
 }
 
 .author .name {
@@ -527,7 +490,7 @@ img {
 }
 
 .index_dragon pre {
-    background: white;
+    background: #fbfbfb;
     line-height: 1.8em;
 }
 
