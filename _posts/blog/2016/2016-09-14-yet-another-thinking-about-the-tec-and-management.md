@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     新开始
+title:     影响力
 category:  blog
 description: 有关 2016 上半年总结
 tags: 记录 生活
