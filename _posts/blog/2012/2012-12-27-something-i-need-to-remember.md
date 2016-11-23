@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     只言片语
+title:     Simple is complicate
 category:  blog
 description: 虽然说有些东西很难表述，但还是记录下来...
 tags: code simple hard 经验

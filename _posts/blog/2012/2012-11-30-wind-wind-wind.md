@@ -1,6 +1,6 @@
 ---
 layout:    post
-title:     风！风！风！
+title:     风
 category:  blog
 description: 风这么大，我一定是水逆了...
 tags: 生活 体会 天气 北京
