@@ -90,6 +90,5 @@ tips: private私有日志只是预发布作用，实际上在github上还是可�
 
 1. [Sublime Text 2快速写日志插件](https://github.com/GuoJing/SublimeText2Plugins/blob/master/Jkblogger.py)
 
-
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/GuoJing/guojing.github.com/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
