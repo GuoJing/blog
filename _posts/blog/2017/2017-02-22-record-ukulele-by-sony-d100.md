@@ -3,7 +3,7 @@ layout:    post
 title:     Recorded - Blue Roses Falling 2017
 category:  blog
 description: Recorded by Sony D100 Ukulele blue roses falling 2017
-tags: sony d100 ukulele
+tags: sony d100 ukulele podcast
 ---
 Blue Roses Falling 2017 By Sony D100
 
