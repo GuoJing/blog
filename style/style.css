@@ -46,7 +46,7 @@ h5, h6 {
 
 hr {
   width: 10%;
-  border: 1px solid #eee;
+  border: 1px dashed #eee;
   margin-bottom: 30px;
 }
 
@@ -297,6 +297,27 @@ img {
   vertical-align: middle;
   border: 0;
   -ms-interpolation-mode: bicubic;
+}
+
+.avatar {
+  margin: 0px auto;
+  width: 100%;
+  text-align: center;
+}
+
+.avatar img {
+  width:350px;
+  height: 350px;
+  border-radius: 175px
+}
+
+.about, .ret {
+  width: 80%;
+  margin: 20px auto;
+}
+
+.ret {
+  text-align: center;
 }
 
 .nav-pills > li > a:hover {
