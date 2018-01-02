@@ -55,7 +55,7 @@ hr {
 }
 
 .container {
-  max-width: 900px;
+  max-width: 1200px;
   background: #fbfbfb;
   overflow: hidden;
   padding: 20px;
@@ -306,9 +306,9 @@ img {
 }
 
 .avatar img {
-  width:350px;
-  height: 350px;
-  border-radius: 175px
+  width:200px;
+  height: 200px;
+  border-radius: 100px;
 }
 
 .about, .ret {

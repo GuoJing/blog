@@ -14,7 +14,17 @@ title: GuoJing's Blog|只要心还跳
             - <a href="/about">About</a>
         </span>
       </li>
-    <ul>
+    </ul>
+    <ul class="archive" style="margin-top: 30px">
+      {% for post in site.posts limit:2 %}
+      {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
+      <li class="item">
+        <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
+        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
+      </li>
+      {% endfor %}
+    </ul>
+
   </div>
 </div>
 </div>
