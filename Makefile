@@ -3,7 +3,7 @@ cafe:
 	ghp-import _site -b gitcafe-pages -r cafe -p
 
 blog:
-	#jekyll build
+	jekyll build
 	ghp-import _site -b master -r html -p 
 
 clean:
