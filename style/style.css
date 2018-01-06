@@ -518,3 +518,7 @@ img {
 .index_center {
     text-align: center;
 }
+
+.index_category {
+  font-size: 10px;
+}

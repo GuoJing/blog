@@ -10,7 +10,8 @@ title: GuoJing's Blog|只要心还跳
       <li class="year">
         <span style="font-size: 20px; font-weight: lighter;">GuoJing's Blog</span>
         <span class="item">
-            - <a href="/archive">Archive</a>
+            - <a href="/blog">Blog</a>
+            - <a href="/gallery">Gallery</a>
             - <a href="/about">About</a>
         </span>
       </li>
@@ -20,7 +21,8 @@ title: GuoJing's Blog|只要心还跳
       {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
       <li class="item">
         <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
-        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
+        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a> -
+        <a href="/{{ post.categories }}"><span class="index_category">[{{ post.categories }}]</span></a>
       </li>
       {% endfor %}
     </ul>
