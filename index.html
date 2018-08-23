@@ -10,22 +10,18 @@ title: GuoJing's Blog|只要心还跳
       <li class="year">
         <span style="font-size: 20px; font-weight: lighter;">GuoJing's Blog</span>
         <span class="item">
-            - <a href="/blog">Blog</a>
-            - <a href="http://guojingphotography.com/">Photos</a>
-            - <a href="https://twitter.com/GuoJing">Twitter</a>
-            - <a href="https://www.youtube.com/c/GuoJing">Youtube</a>
-            - <a href="https://www.instagram.com/soundbbg/">Instagram</a>
-            - <a href="/about">About</a>
+            - <a href="/blog" style="font-size:12px">Posts</a>
+            - <a href="http://guojingphotography.com/" style="font-size:12px">Photos</a>
+            - <a href="/about" style="font-size:12px">About</a>
         </span>
       </li>
     </ul>
     <ul class="archive" style="margin-top: 30px">
-      {% for post in site.posts limit:2 %}
+      {% for post in site.posts limit:3 %}
       {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
       <li class="item">
         <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
-        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a> -
-        <a href="/{{ post.categories }}"><span class="index_category">[{{ post.categories }}]</span></a>
+        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
       </li>
       {% endfor %}
     </ul>
