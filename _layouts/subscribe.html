@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>{{ site.title }}|{{ site.description }}</title>
+  {% include header.html %}
+  <meta content="{{ site.headdesc }}" name="description"/>
+  <meta content="{{ site.headkeys }}" name="keywords"/>
+  <script id="mcjs">!function(c,h,i,m,p){m=c.createElement(h),p=c.getElementsByTagName(h)[0],m.async=1,m.src=i,p.parentNode.insertBefore(m,p)}(document,"script","https://chimpstatic.com/mcjs-connected/js/users/a4886db82ff53055a16115789/a2603b3550db0df7a9f07f67a.js");</script>
+</head>
+<body>
+
+<div class="container">
+
+<div class="main">
+{% if page.show %}
+<div class="title">{{ page.title }}</div>
+{% endif %}
+<div class="content">
+	{{ content }}
+</div>
+</div>
+</div>
+</body>
+</html>
+
