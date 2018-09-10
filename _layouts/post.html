@@ -62,11 +62,9 @@
   <div class="hidden" itemprop="author">GuoJing</div>
   <div class="hidden" itemprop="description">{{ page.description }}</div>
 
-  <!--
   <div class="info">
-      <i>Written {{ page.date | date:"%Y-%m-%d"}}</i>
+      <i>{{ page.date | date:"%Y-%m-%d"}}</i>
   </div>
--->
 
   <div class="content {{ page.categories }}_content_css" itemprop="articleBody">
     {{ content }}

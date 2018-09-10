@@ -172,7 +172,9 @@ blockquote p {
 }
 
 .footer {
-  text-align: center;
+  max-width: 970px;
+  margin: -10px auto;
+  text-align: right;
   color: #2f373e;
   margin-bottom: 30px;
 }
@@ -305,8 +307,8 @@ pre code {
 
 .info,.suggest {
   color: #bababa;
-  margin-bottom: 30px;
-  margin-top: 20px;
+  margin-bottom: 10px;
+  margin-top: 5px;
   width: 100%;
 }
 
