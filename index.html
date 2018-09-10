@@ -2,23 +2,23 @@
 layout: default
 title: GuoJing's Blog|只要心还跳
 ---
-<div class="container">
-<div class="main">
-<div class="content">
-  <div>
+<div class="index">
+  <!-- banner -->
+  <div class="col-sm-12 title banner">
+  <a href="/">GuoJing's Blog</a>
+    <span class="item">
+        - <a href="/blog" style="font-size:12px">Posts (中文)</a>
+        - <a href="/about" style="font-size:12px">About</a>
+        - <a href="/subscribe" style="font-size:12px">Subscribe</a>
+        - <a href="http://guojingphotography.com/" style="font-size:12px" target="_blank">Portfolio</a>
+    </span>
+  </div>
+  <!-- banner end -->
+
+  <!-- list -->
+  <div class="col-sm-6 index_list">
     <ul class="archive">
-      <li class="year">
-        <span style="font-size: 20px; font-weight: lighter;">GuoJing's Blog</span>
-        <span class="item">
-            - <a href="/blog" style="font-size:12px">Posts</a>
-            - <a href="http://guojingphotography.com/" style="font-size:12px">Photos</a>
-            - <a href="/about" style="font-size:12px">About</a>
-            - <a href="/subscribe" style="font-size:12px">Subscribe</a>
-        </span>
-      </li>
-    </ul>
-    <ul class="archive" style="margin-top: 30px">
-      {% for post in site.posts limit:3 %}
+      {% for post in site.posts limit:5 %}
       {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
       <li class="item">
         <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
@@ -26,8 +26,8 @@ title: GuoJing's Blog|只要心还跳
       </li>
       {% endfor %}
     </ul>
-
   </div>
-</div>
-</div>
+  <!-- list end -->
+
+  <div class="col-sm-12 copyright"> Copy right @Guojing 2005-2018</div>
 </div>

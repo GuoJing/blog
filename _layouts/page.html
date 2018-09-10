@@ -5,11 +5,25 @@
   {% include header.html %}
   <meta content="{{ site.headdesc }}" name="description"/>
   <meta content="{{ site.headkeys }}" name="keywords"/>
+  <style>
+  body {background: #fbfbfb}
+  </style>
 </head>
 <body>
 
-<div class="container">
+<div class="all">
+<div class="col-sm-12 title banner">
+<a href="/">GuoJing's Blog</a>
+<span class="item">
+    - <a href="/blog" style="font-size:12px">Posts (中文)</a>
+    - <a href="/about" style="font-size:12px">About</a>
+    - <a href="/subscribe" style="font-size:12px">Subscribe</a>
+    - <a href="http://guojingphotography.com/" style="font-size:12px" target="_blank">Portfolio</a>
+</span>
+</div>
+</div>
 
+<div class="container">
 <div class="main">
 {% if page.show %}
 <div class="title">{{ page.title }}</div>

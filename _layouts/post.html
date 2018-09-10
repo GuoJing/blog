@@ -4,6 +4,9 @@
 <head>
   <title>{{ page.title }}|{{ site.title }}</title>
   {% include header.html %}
+  <style>
+    body {background: #fbfbfb}
+  </style>
   <script type="text/javascript">
         var BYB = {};
   </script>
@@ -14,7 +17,7 @@
     js.setAttribute('type', 'text/javascript');
     js.setAttribute('src', file);
     _doc.appendChild(js);
-    
+
     if (!/*@cc_on!@*/0) { //if not IE
     //Firefox2、Firefox3、Safari3.1+、Opera9.6+ support js.onload
     js.onload = function () {
@@ -42,8 +45,18 @@
 
 
 <article id="main" itemscope itemtype="http://schema.org/Article">
+<div class="all">
+<div class="col-sm-12 title banner">
+<a href="/">GuoJing's Blog</a>
+<span class="item">
+    - <a href="/blog" style="font-size:12px">Posts (中文)</a>
+    - <a href="/about" style="font-size:12px">About</a>
+    - <a href="/subscribe" style="font-size:12px">Subscribe</a>
+    - <a href="http://guojingphotography.com/" style="font-size:12px" target="_blank">Portfolio</a>
+</span>
+</div>
+</div>
 <div class="container">
-
 <div class="main clearfix">
   <div class="title" itemprop="name">{{ page.title }}</div>
   <div class="hidden" itemprop="author">GuoJing</div>
@@ -73,7 +86,7 @@
     {% if page.previous %}
         <a href="{{page.previous.url}}" class="pre">&lt; {{page.previous.title}}</a>
     {% endif %}
-    
+
     {% if page.next %}
         <a href="{{page.next.url}}" class="next">{{page.next.title}} &gt;</a>
     {% endif %}
@@ -83,12 +96,12 @@
 
 <!--
 <div class="comments {{ page.categories }}_comments_css">
-<div id="disqus_container"> 
+<div id="disqus_container">
     {% if page.not_comment %}
     <span class="comment">该文章已关闭评论。</span>
     {% else %}
     <a href="#" class="comment" onclick="return false;">点击评论或查看评论。</a>
-    {% endif %}    
+    {% endif %}
     <div id="disqus_thread"></div>
 </div>
 </div>

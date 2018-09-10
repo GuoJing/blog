@@ -5,9 +5,14 @@
   font-style: normal;
   }
 
+html {
+  height: 100%;
+}
+
 body {
-  font-size: 17px;
-  color: #525d67;
+  font-size: 16px;
+  color: #2f373e;
+  height: 100%;
   background: #fbfbfb;
   font-family: 'Avenir Next', "Open Sans",Arial,"Hiragino Sans GB","Microsoft YaHei","微软雅黑","STHeiti","WenQuanYi Micro Hei",SimSun, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -15,6 +20,18 @@ body {
   margin: 0;
   padding: 0;
   letter-spacing: 1px;
+
+  background: transparent;
+  background-repeat: no-repeat;
+  background-size:cover;
+  background-image: url('/images/2018/1.jpg');
+  background-attachment:fixed;
+}
+
+.copyright {
+  font-size: 12px;
+  color: white;
+  margin-top: 20px;
 }
 
 .home {
@@ -50,17 +67,29 @@ hr {
   margin-bottom: 30px;
 }
 
+.index_list {
+  background: white;
+  opacity: 0.9;
+  margin-top: 30px;
+  padding: 10px;
+}
+
+.index_list .archive {
+  margin-top: 20px;
+}
+
 .content h3 {
   margin: 40px 0 40px 0;
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1000px;
+  padding-top: 10px;
   background: #fbfbfb;
   overflow: hidden;
-  padding: 20px;
-  border-radius: 0px 0px 10px 10px;
-  padding-top: 40px;
+  /*padding: 20px;*/
+  /*border-radius: 0px 0px 10px 10px;*/
+  /*padding-top: 40px;*/
 }
 
 .hidden {
@@ -68,10 +97,8 @@ hr {
 }
 
 .banner {
-  background: #fbfbfb;
-  border-bottom: 1px solid #ECF0F1;
-  padding: 2px 0 2px 0;
-  font-family: "Lato", Helvetica, Arial, sans-serif;
+  background: black;
+  color: white;
 }
 
 .banner ul li {
@@ -79,11 +106,10 @@ hr {
   padding-right: 5px;
 }
 
-.banner a {color:#7F8C8D;}
+.banner a {color:white;}
 
 .banner a:hover {
   text-decoration: none;
-  background: #fbfbfb;
 }
 
 a {
@@ -91,10 +117,15 @@ a {
 }
 
 .title {
-  font-size: 3rem;
-  margin-left: -5px;
-  margin-bottom: 30px;
-  color: #3f4851;
+  font-size: 14px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.main .title {
+  font-size: 28px;
+  color: black;
+  font-weight: bolder;
 }
 
 .justtitle {
@@ -110,7 +141,7 @@ a {
 
 .content, blockquote {
   line-height: 2.5em;
-  color: #525d67;
+  color: #2f373e;
 }
 
 .content i, .content em {
@@ -142,8 +173,8 @@ blockquote p {
 
 .footer {
   text-align: center;
-  color: #747f8c;
-  margin-bottom: 20px;
+  color: #2f373e;
+  margin-bottom: 30px;
 }
 
 .date {
@@ -208,14 +239,11 @@ a:link {
 }
 
 .archive {
-  margin-top: -30px;
   font-size: 16px;
 }
 
 .archive li {
   line-height: 1.5em;
-  margin: 0 0 1.5rem;
-  padding: 0;
   list-style: none;
 }
 
@@ -224,7 +252,8 @@ a:link {
 }
 
 .archive .year {
-  color: #6b747f;
+  color: black;
+  font-weight: bolder;
   text-transform: uppercase;
   margin: 25px 0;
   font-weight: bolder;
@@ -233,7 +262,6 @@ a:link {
 ul,ol {
   list-style: none;
   margin: 0;
-  margin-bottom: 30px;
 }
 
 .content ul,li {
@@ -311,21 +339,17 @@ img {
   border-radius: 100px;
 }
 
-.about, .ret {
+.about {
+  margin: 20px auto;
+}
+
+.ret {
   width: 80%;
   margin: 20px auto;
 }
 
 .ret {
   text-align: center;
-}
-
-.nav-pills > li > a:hover {
-  background-color: #fbfbfb;
-}
-
-.nav-pills>li+li {
-  margin-left: -10px;
 }
 
 .poster,.content p,.content ul,.date {
@@ -346,12 +370,8 @@ img {
   text-decoration: none;
 }
 
-.footer a:hover {
-  color: #41474e;
-}
-
 .content a {
-  border-bottom: 2px solid #ecf0f1;
+  border-bottom: 1px dashed #ecf0f1;
 }
 
 .content .center {
@@ -373,7 +393,7 @@ img {
 }
 
 .content a:hover {
-  color: #4285F4;
+  color: black;
 }
 
 .content .collect_info {
@@ -394,10 +414,6 @@ img {
 
 .content table thead tr th:first-child {
   width: 250px;
-}
-
-.justtitle a:hover {
-  color: #747f8c;
 }
 
 .tagcloud span a:link, .tagcloud a:visited,.tagcloud a:hover  {
@@ -422,11 +438,13 @@ img {
 }
 
 ::selection {
-  background: #f7fafb; /* Safari */
+  background: black; /* Safari */
+  color: white;
 }
 
 ::-moz-selection {
-  background: #f7fafb; /* Firefox */
+  background: black; /* Safari */
+  color: white;
 }
 
 .author {
@@ -461,26 +479,6 @@ img {
 
 .aboutme {
   text-align: center;
-}
-
-.aboutme img {
-  max-width: 256px;
-  max-height: 256px;
-  border-radius: 128px;
-  border: 10px solid #f7fafb;
-}
-
-.me {
-  text-align: center;
-}
-
-.me img {
-  max-width: 250px;
-  max-height: 250px;
-  border-radius: 160px;
-  border: 5px solid #f1f1f1;
-  text-align: center;
-  margin-bottom: 30px;
 }
 
 .justtitle span{
