@@ -10,7 +10,7 @@ html {
 }
 
 body {
-  font-size: 16px;
+  font-size: 15px;
   color: #2f373e;
   height: 100%;
   background: #fbfbfb;
@@ -78,6 +78,10 @@ hr {
   margin-top: 20px;
 }
 
+.archive a:hover {
+  color: gray;
+}
+
 .content h3 {
   margin: 40px 0 40px 0;
 }
@@ -113,13 +117,14 @@ hr {
 }
 
 a {
-  color: #34495E;
+  color: black;
 }
 
 .title {
   font-size: 14px;
   padding-top: 10px;
   padding-bottom: 10px;
+  margin-left: -2px;
 }
 
 .main .title {
@@ -208,21 +213,21 @@ blockquote {
 }
 
 .footer a:link {
-  color: #747f8c;
+  color: black;
   text-decoration: none;
   margin: 0 2px;
   padding: 3px;
 }
 
 .comments a:link {
-  color: #747f8c;
+  color: black;
   text-decoration: none;
   margin: 0 2px;
   padding: 3px;
 }
 
 .comments a:visited {
-  color: #747f8c;
+  color: black;
   text-decoration: none;
 }
 
@@ -241,7 +246,7 @@ a:link {
 }
 
 .archive {
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .archive li {
@@ -250,12 +255,12 @@ a:link {
 }
 
 .archive li time {
-  color: #95a5a6;
+  color: gray;
 }
 
 .archive .year {
   color: black;
-  font-weight: bolder;
+  font-size: 17px;
   text-transform: uppercase;
   margin: 25px 0;
   font-weight: bolder;
@@ -306,10 +311,14 @@ pre code {
 }
 
 .info,.suggest {
-  color: #bababa;
+  color: gray;
   margin-bottom: 10px;
   margin-top: 5px;
   width: 100%;
+}
+
+.info i {
+  font-style: normal;
 }
 
 .suggest,.pre {
@@ -359,7 +368,7 @@ img {
 }
 
 .footer a:visited,.forb a:link,.suggest a:link,.forb a:visited,.suggest a:visited {
-  color: #747f8c;
+  color: black;
   text-decoration: none;
 }
 
@@ -389,7 +398,7 @@ img {
 }
 
 .content a:visited,.content a:link,.content a:hover {
-  color: #747f8c;
+  color: black;
   margin: 0 2px;
   padding: 3px;
 }
@@ -400,7 +409,7 @@ img {
 
 .content .collect_info {
   margin-bottom: 40px;
-  color: #747f8c;
+  color: black;
 }
 
 /* table */
@@ -426,7 +435,7 @@ img {
   font-size: 13px;
   border-top: 1px solid #f0f0f0;
   padding-top: 30px;
-  color: #747f8c;
+  color: black;
 }
 
 .footnotes ol {
