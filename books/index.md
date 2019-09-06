@@ -12,7 +12,7 @@ description: 电子书
 
     <div class="books_list">
         <ul>
-        <li><a href="https://pan.baidu.com/s/1PNf0ikM0bSouamWQVJzb3Q">疯 - VOL 1 - Street Photography with Leica M System</a> 提取: i4u7</li>
+        <li><a href="https://pan.baidu.com/s/1PNf0ikM0bSouamWQVJzb3Q">疯 - VOL 1 - Street Photography with Leica M System</a></li>
         </ul>
     </div>
 

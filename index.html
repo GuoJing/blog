@@ -7,7 +7,7 @@ title: GuoJing's Blog|只要心还跳
   <div class="col-sm-12 title banner">
   <a href="/">GuoJing's Blog</a>
     <span class="item">
-        - <a href="/blog" style="font-size:12px">Posts (中文)</a>
+        - <a href="/blog" style="font-size:12px">Posts (中文/Chinese)</a>
         - <a href="/about" style="font-size:12px">About</a>
         - <a href="/books" style="font-size:12px">E-Books</a>
         - <a href="https://instagram.com/soundbbg" style="font-size:12px">Instagram</a>
@@ -17,10 +17,31 @@ title: GuoJing's Blog|只要心还跳
   </div>
   <!-- banner end -->
 
-  <!-- list -->
+  <!-- list title -->
+  <div class="col-sm-6 index_list_title">
+    What's NEW
+  </div>
+  <!-- list title end -->
+
+  <div class="col-sm-6 index_gallery">
+    <ul>
+      <li>
+        <div>
+          <div class="img_pannel"><img src="/gallery/bw/1-800.jpg"/></div>
+          <div class="img_pannel_discription"><span>请关注《疯》- <a href="/about">InThisMadWorld 公众号</a></span></div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+   <!-- list title -->
+   <!-- list title end -->
+
+   <!-- list -->
+   <!--
   <div class="col-sm-6 index_list">
     <ul class="archive">
-      {% for post in site.posts limit:5 %}
+      {% for post in site.posts limit:2 %}
       {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
       <li class="item">
         <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
@@ -29,6 +50,7 @@ title: GuoJing's Blog|只要心还跳
       {% endfor %}
     </ul>
   </div>
+  -->
   <!-- list end -->
 
   <div class="col-sm-12 copyright"> Copy right @Guojing 2005-2019</div>
