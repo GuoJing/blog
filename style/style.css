@@ -80,12 +80,14 @@ hr {
 .index_gallery {
     background: white;
     margin-left:10px;
+    margin-right:10px;
     padding-top: 30px;
     margin-top:20px;
 }
 
 .index_gallery ul {
     list-style: none;
+    margin-left: -25px;
 }
 
 .index_gallery ul, li {
@@ -96,7 +98,7 @@ hr {
 }
 
 .index_gallery .img_pannel img{
-    max-width: 400px;
+    max-width: 95%;
 }
 
 .index_gallery .img_pannel_discription {
@@ -129,9 +131,6 @@ hr {
   padding-top: 10px;
   background: #fbfbfb;
   overflow: hidden;
-  /*padding: 20px;*/
-  /*border-radius: 0px 0px 10px 10px;*/
-  /*padding-top: 40px;*/
 }
 
 .hidden {
