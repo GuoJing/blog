@@ -38,19 +38,21 @@ title: GuoJing Photography - InThisMadWorld|只要心还跳
    <!-- list title end -->
 
    <!-- list -->
-   <!--
-  <div class="col-sm-6 index_list">
-    <ul class="archive">
-      {% for post in site.posts limit:2 %}
-      {% capture y %}{{post.date | date:"%Y"}}{% endcapture %}
-      <li class="item">
-        <time datetime="{{ post.date | date:"%Y-%m-%d" }}">{{ post.date | date:"%Y-%m-%d" }}</time>
-        <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
-      </li>
-      {% endfor %}
-    </ul>
+
+   <div class="col-sm-2 index_list">
+     <div><span style="color: white; background: black; padding:2px"><b>NEWS</b></span></div>
+     <div style="padding-left:5px;">
+       <ul class="archive" style="font-size:14px">
+         {% for post in site.posts limit:2 %}
+         <!-- {% capture y %}{{post.date | date:"%Y"}}{% endcapture %} -->
+         <li class="item">
+           + <a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a>
+         </li>
+         {% endfor %}
+       </ul>
+     </div>
   </div>
-  -->
+
   <!-- list end -->
 
   <div class="col-sm-12 copyright"> Copy right @Guojing 2005-2019</div>

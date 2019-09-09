@@ -1,0 +1,92 @@
+<!DOCTYPE HTML>
+<html>
+<!-- <html> -->
+<head>
+  <title>{{ page.title }}|{{ site.title }}</title>
+  {% include header.html %}
+  <style>
+    body {background: #fbfbfb}
+  </style>
+  <script type="text/javascript">
+        var BYB = {};
+  </script>
+  <script type="text/javascript">
+    BYB.includeScript = function(file,callback){
+    var _doc = document.getElementsByTagName('head')[0];
+    var js = document.createElement('script');
+    js.setAttribute('type', 'text/javascript');
+    js.setAttribute('src', file);
+    _doc.appendChild(js);
+
+    if (!/*@cc_on!@*/0) { //if not IE
+    //Firefox2、Firefox3、Safari3.1+、Opera9.6+ support js.onload
+    js.onload = function () {
+    callback();
+    }
+    } else {
+    //IE6、IE7 support js.onreadystatechange
+    js.onreadystatechange = function () {
+    if (js.readyState == 'loaded' || js.readyState == 'complete') {
+    callback();
+    }
+    }
+    }
+    return false;
+    }
+  </script>
+  <meta content="{{ page.description }}" name="description"/>
+  <meta content="{% for tag in page.tags %}{{ tag }},{% endfor %}" name="keywords"/>
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="{{ site.url }}/{{ page.url }}" />
+  <meta property="og:title" content="{{ page.title }}" />
+  <meta property="og:description" content="{{ page.description }}" />
+</head>
+
+<body style="background: black">
+  <article id="main" itemscope itemtype="http://schema.org/Article">
+<div class="all" style="background: black">
+  <div class="col-sm-12 title banner">
+    <a href="/"><img src="/images/logo.png" style="max-height:16px"/></a>
+    <span class="item">
+      - <a href="/blog" style="font-size:12px">Posts (中文/Chinese)</a>
+      - <a href="/about" style="font-size:12px">About</a>
+      - <a href="/books" style="font-size:12px">E-Books</a>
+      - <a href="https://instagram.com/soundbbg" style="font-size:12px">Instagram</a>
+      - <a href="/subscribe" style="font-size:12px">Subscribe</a>
+      - <a href="http://guojingphotography.com/" style="font-size:12px" target="_blank">Portfolio</a>
+    </span>
+  </div>
+</div>
+<div class="container col-sm-12" style="max-width: 100%; padding:0px; background: black">
+
+  <div class="gallery_title" style="color: white; font-size: 50px; padding-left:10px">
+    {{ page.title }}
+  </div>
+
+  <div style="color:white; font-size:12px; padding-left:12px; margin-bottom:-10px;">
+    {{ page.content }}
+  </div>
+
+  <div class="col-sm-4 pictures clearfix">
+    {% for img in page.images1 %}
+    <div class="img"><img src="/images/{{ img }}"/></div>
+    {% endfor %}
+  </div>
+  <div class="col-sm-4 pictures clearfix">
+    {% for img in page.images2 %}
+    <div class="img"><img src="/images/{{ img }}"/></div>
+    {% endfor %}
+  </div>
+  <div class="col-sm-4 pictures clearfix">
+    {% for img in page.images3 %}
+    <div class="img"><img src="/images/{{ img }}"/></div>
+    {% endfor %}
+  </div>
+  <div class="col-sm-4 pictures clearfix">
+    {% for img in page.images4 %}
+    <div class="img"><img src="/images/{{ img }}"/></div>
+    {% endfor %}
+  </div>
+<div class="col-sm-12 copyright" style="margin-bottom:20px; margin-top:-10px"> Copy right @Guojing 2005-2019</div>
+</div>
+</body>
